@@ -1,0 +1,22 @@
+# Never ship local env or databases
+.env
+.env.*
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Test and tooling artifacts
+e2e/
+tests/
+test-results/
+playwright-report/
+playwright.config.ts
+vitest.config.mts
+deploy-log.txt
+scripts/smoke-prod.ts
+
+# Reference design + docs (not needed at runtime)
+*.dc.html
+plan.md
+final.md
