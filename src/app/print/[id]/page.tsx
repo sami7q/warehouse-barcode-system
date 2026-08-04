@@ -9,6 +9,26 @@ import PrintTrigger from "@/components/print/PrintTrigger";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Print routes get their own title: browsers print the document title in the
+ * page header, so inheriting "إدارة المخازن" put app branding on the label.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: rawId } = await params;
+  const id = Number(rawId);
+  if (Number.isInteger(id) && id > 0) {
+    const product = await getDb().query.products.findFirst({
+      where: eq(products.id, id),
+    });
+    if (product) return { title: product.name };
+  }
+  return { title: "ملصق باركود" };
+}
+
 /** /print/[id] — label-only layout for a single product, no app chrome. */
 export default async function PrintOnePage({
   params,
@@ -29,10 +49,12 @@ export default async function PrintOnePage({
     <>
       <PrintStyles />
       <PrintTrigger />
-      <Label
-        product={product}
-        svg={renderBarcodeSvg(product.barcode, { includeText: false })}
-      />
+      <main className="print-labels">
+        <Label
+          product={product}
+          svg={renderBarcodeSvg(product.barcode, { includeText: false })}
+        />
+      </main>
     </>
   );
 }

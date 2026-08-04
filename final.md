@@ -404,3 +404,99 @@ or any commit — per the audit's handling rules:
   (git-ignored, vercel-ignored).
 - Old Vercel deployments containing the dev `.env` were deleted; current
   production and all future deploys exclude it via `.vercelignore`.
+
+---
+
+## Print Label Fix
+
+A real print test of `/print/[id]` for "كيلو سكر" (PDF export, visually
+inspected) exposed three defects the automated suite had not caught. All three
+are fixed, each with a regression test that fails against the old code.
+
+### Root causes (not just symptoms)
+
+**Defect B — product name missing from the label.** The label content stack
+did not fit its own box: padding 3mm + name (10pt ≈ 4.7mm at the Arabic
+font's line-height) + barcode 14mm + digits ≈ 3.8mm + price ≈ 4.3mm + three
+1mm gaps ≈ **32.8mm of content inside a fixed 30mm box**. With
+`justify-content: center` + `overflow: hidden`, the stack clips at both ends —
+and the first element, the product name, is what disappeared. (It passed the
+old tests because headless font metrics left it borderline; real-browser
+metrics pushed it over.) **Fix:** the content budget was re-derived and
+tightened — explicit `line-height: 1.2`, name 9pt single-line ellipsis,
+barcode height 11mm (new named constant `LABEL_BARCODE_HEIGHT_MM`), digits
+7.5pt, gaps 0.7mm, padding 1mm ≈ **26mm of 30mm → 4mm slack**. The barcode
+stays scannable: effective module width 0.319mm ≥ the 0.264mm minimum
+(recomputed in the unit test from the real constrained geometry).
+
+**Defect C — wrong page size / 2 pages for 1 label.** Two causes. (1)
+`break-after: page` applied to *every* label, including the last → a forced
+trailing blank page (1 label printed as 2 pages). The first fix attempt
+(`:not(:last-of-type)`) worked locally but still failed in production: after
+hydration Next.js appends its route-announcer `div` to `<body>`, so the label
+was no longer "last" and the break came back — a race the local test passed by
+luck. **Final fix:** labels render inside a dedicated `<main>` wrapper and the
+break rule is `.print-label + .print-label { break-before: page }` — a break
+exists only *between* consecutive labels, immune to any trailing DOM Next
+adds. The regression test now waits for hydration (`networkidle`) before
+generating the PDF so it tests the worst case. (2) The full-size-page corner
+rendering in the user's export came from the OS print dialog printing on
+default A4 paper — see the physical-print note below; browser "Save as PDF"
+and the PDF pipeline honor `@page 50mm 30mm` (verified: exported MediaBox is
+50.12 × 29.97mm).
+
+**Defect C (branding) — "إدارة المخازن" on the label.** That text was never in
+the print route's DOM — it was the inherited document `<title>` from the root
+layout, which browsers print in the page header (and headers get room when
+the page size falls back to A4). **Fix:** print routes now carry their own
+metadata — `/print/[id]`'s title is the product name (also giving the PDF a
+sensible filename), `/print?ids=` uses "ملصقات باركود".
+
+**Defect A — content rotated ~90°.** No rotation exists in the code: audited
+every element's computed `transform` (must be none/identity) and
+`writing-mode` (must be `horizontal-tb`), and the barcode SVG's own markup
+(plain vertical-line paths, no transform/viewBox rotation) — now enforced by
+a regression test. The exported PDF contains **no `/Rotate` entries**. The
+rotation in the field print came from the export pipeline: a 50×30mm CSS page
+is landscape-oriented, and when forced onto portrait A4 by the OS print
+dialog the content gets auto-rotated and cornered. With the correct label
+stock selected (or browser Save-as-PDF), output is upright — see the manual
+note below.
+
+### Regression tests added (`e2e/print-pdf.spec.ts`, all green; red on old code)
+
+- PDF page size exactly 50mm × 30mm (≈141.73 × 85.04pt MediaBox), via
+  `page.pdf({ preferCSSPageSize: true })` — not a default paper size.
+- Exactly 1 page for 1 label and exactly N pages for N labels (fails on the
+  old code with 2 and 4), generated after hydration.
+- Product name text node exact-match AND its bounding box fully inside the
+  label box (catches visible-but-clipped), parametrized over "كيلو سكر" and a
+  long name; plus scrollHeight ≤ clientHeight (zero overflow).
+- No element computes a rotating transform; every element is
+  `writing-mode: horizontal-tb`; the barcode SVG markup itself contains no
+  rotation.
+- No app chrome: rendered body text and document title contain no
+  "إدارة المخازن"; the label contains exactly the four required elements
+  (name, barcode, digits, price) and nothing else.
+- Visual baseline artifacts attached to the test output (label PNG + PDF).
+
+**Totals after fix: 99 tests passing (63 vitest + 36 Playwright), build clean.**
+
+### Fresh verification against production (deployed and re-exported)
+
+`scripts/export-label-pdf.ts` against the live URL for the real "كيلو سكر"
+product (id 2): **1 page, 50.12 × 29.97mm, no rotation entries, name present,
+digits 6281100000020, title "كيلو سكر"**. Known-good artifacts committed at
+`docs/label-baseline.pdf` / `docs/label-baseline.png`.
+
+### Physical print note (manual step for the owner)
+
+A correct PDF does not guarantee a correct physical print: in the print
+dialog, the **printer's paper size must be set to the 50×30mm label stock**
+(and scale to 100%). If the driver is left on A4/Letter, Windows will rotate
+and corner the label exactly like the defect being fixed here. Set the label
+size once in the printer driver defaults (Printing Preferences → Page Setup →
+50mm × 30mm), then print a label and scan it with the Zebra scanner to
+confirm a first-attempt read — the barcode module width (0.319mm) is above
+the standard scannable minimum, so a clean thermal print should read
+immediately.

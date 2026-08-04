@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { assembleBarcode } from "@/lib/ean13";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
-import { LABEL_WIDTH_MM } from "@/lib/constants";
+import { LABEL_BARCODE_HEIGHT_MM, LABEL_WIDTH_MM } from "@/lib/constants";
 
 /**
  * Audit Section 3 — barcode quality at label print size.
- * The label reserves LABEL_WIDTH_MM - 8 mm for the barcode (PrintStyles).
+ * The label reserves a (LABEL_WIDTH_MM - 8)mm × LABEL_BARCODE_HEIGHT_MM box
+ * for the barcode with object-fit: contain, so the effective printed width is
+ * limited by BOTH the box width and the height × the SVG aspect ratio.
  * EAN-13 is 95 modules wide; the minimum reliably scannable module width
  * (80% magnification of the 0.33mm nominal) is 0.264mm.
  */
-const BARCODE_AREA_MM = LABEL_WIDTH_MM - 8;
+const BARCODE_BOX_W_MM = LABEL_WIDTH_MM - 8;
+const SVG_ASPECT = 190 / 69; // bwip-js EAN-13 viewBox, includetext: false
 const EAN13_MODULES = 95;
 const MIN_MODULE_MM = 0.264;
 
 describe("EAN-13 rendering at label print size", () => {
   it("module width at the label size stays above the scannable minimum", () => {
-    const moduleWidthMm = BARCODE_AREA_MM / EAN13_MODULES;
+    const effectiveWidthMm = Math.min(
+      BARCODE_BOX_W_MM,
+      LABEL_BARCODE_HEIGHT_MM * SVG_ASPECT,
+    );
+    const moduleWidthMm = effectiveWidthMm / EAN13_MODULES;
     expect(moduleWidthMm).toBeGreaterThanOrEqual(MIN_MODULE_MM);
   });
 

@@ -19,6 +19,12 @@ export function qtyTier(quantity: number): QtyTier {
 /** Label size for the thermal printer (Section 7) — change here only. */
 export const LABEL_WIDTH_MM = 50;
 export const LABEL_HEIGHT_MM = 30;
+/**
+ * Barcode image height on the label. The full content stack (name + barcode +
+ * digits + price + gaps + padding) must total well under LABEL_HEIGHT_MM —
+ * overflowing the box clips the product name and can force a second page.
+ */
+export const LABEL_BARCODE_HEIGHT_MM = 11;
 
 /** Delay before window.print() so barcode SVGs have painted. */
 export const PRINT_DELAY_MS = 300;

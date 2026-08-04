@@ -9,6 +9,9 @@ import PrintTrigger from "@/components/print/PrintTrigger";
 
 export const dynamic = "force-dynamic";
 
+/** Own title — browsers print the document title in the page header. */
+export const metadata = { title: "ملصقات باركود" };
+
 /** /print?ids=1,2,3 — label-only layout for one or more products. */
 export default async function PrintPage({
   searchParams,
@@ -40,13 +43,15 @@ export default async function PrintPage({
     <>
       <PrintStyles />
       <PrintTrigger />
-      {ordered.map((p) => (
-        <Label
-          key={p.id}
-          product={p}
-          svg={renderBarcodeSvg(p.barcode, { includeText: false })}
-        />
-      ))}
+      <main className="print-labels">
+        {ordered.map((p) => (
+          <Label
+            key={p.id}
+            product={p}
+            svg={renderBarcodeSvg(p.barcode, { includeText: false })}
+          />
+        ))}
+      </main>
     </>
   );
 }
