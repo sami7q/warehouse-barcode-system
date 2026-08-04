@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#E8EBF2;font-family:'Noto Kufi Arabic',sans-serif;}
+  *{box-sizing:border-box;}
+  a{color:#2563EB;text-decoration:none;}
+  a:hover{color:#1D4ED8;}
+  input[type=number]::-webkit-inner-spin-button{opacity:1;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#C3CBDA;border-radius:8px;}
+  @media print{
+    body{background:#fff;}
+    .app-root{display:none !important;}
+    .print-label{display:flex !important;}
+  }
+</style>
+</helmet>
+<div dir="rtl" class="app-root" data-screen-label="إدارة المخازن" style="display:flex; flex-direction:column; min-height:100vh; background:#E8EBF2; color:#101C36; font-family:'Noto Kufi Arabic',sans-serif;">
+
+  <!-- شريط العنوان -->
+  <div style="background:#101C36; color:#fff; display:flex; align-items:center; padding:0 18px; height:58px; gap:14px;">
+    <div style="width:36px; height:36px; border-radius:9px; background:#fff; display:grid; place-items:center;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#101C36" stroke-width="2"><path d="M3 9.5 12 4l9 5.5V20H3z"></path><path d="M8 20v-6h8v6"></path></svg>
+    </div>
+    <div style="font-size:19px; font-weight:700;">إدارة المخازن</div>
+    <div style="margin-inline-start:auto; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+      <span dir="ltr">{{ clock }}</span>
+      <span dir="ltr" style="opacity:.85;">2026-08-04</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:4px; margin-inline-start:14px;">
+      <span style="width:34px; height:30px; display:grid; place-items:center; border-radius:6px; cursor:pointer; font-size:16px;" style-hover="background:rgba(255,255,255,.12)">–</span>
+      <span style="width:34px; height:30px; display:grid; place-items:center; border-radius:6px; cursor:pointer;" style-hover="background:rgba(255,255,255,.12)"><span style="width:11px; height:11px; border:1.5px solid #fff; display:block;"></span></span>
+      <span style="width:34px; height:30px; display:grid; place-items:center; border-radius:6px; cursor:pointer; font-size:15px;" style-hover="background:#C42B1C">✕</span>
+    </div>
+  </div>
+
+  <!-- الجسم -->
+  <div style="display:flex; gap:14px; padding:16px 18px; flex:1; align-items:stretch;">
+
+    <!-- منطقة الجدول -->
+    <div style="flex:1; min-width:0; background:#fff; border:1px solid #DCE1EB; border-radius:14px; padding:18px 20px; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+        <div style="font-size:17px; font-weight:700;">البحث عن منتج</div>
+        <div style="display:flex; margin-inline-start:auto;">
+          <span style="background:#101C36; color:#fff; font-size:13px; font-weight:600; padding:10px 18px; border-radius:0 9px 9px 0; display:flex; align-items:center; gap:7px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            بحث
+          </span>
+          <input value="{{ search }}" onChange="{{ setSearch }}" placeholder="ابحث باسم المنتج أو الباركود" style="border:1px solid #DCE1EB; border-inline-start:none; border-radius:9px 0 0 9px; padding:10px 14px; font-family:inherit; font-size:13px; width:300px; outline-color:#2563EB;">
+        </div>
+        <button onClick="{{ exportExcel }}" style="display:flex; align-items:center; gap:8px; background:#16A34A; color:#fff; border:none; border-radius:9px; padding:10px 16px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="filter:brightness(1.08)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M9 13l6 6M15 13l-6 6"></path></svg>
+          تصدير إلى Excel
+        </button>
+        <button onClick="{{ refresh }}" style="display:flex; align-items:center; gap:8px; background:#2563EB; color:#fff; border:none; border-radius:9px; padding:10px 16px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;" style-hover="filter:brightness(1.08)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"></path></svg>
+          تحديث
+        </button>
+      </div>
+
+      <div style="border:1px solid #DCE1EB; border-radius:10px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:36px 1.4fr 1.5fr .8fr 1fr 1fr 1fr 1.15fr .95fr .95fr; background:#101C36; color:#fff; font-size:12.5px; font-weight:600;">
+          <span style="padding:11px 8px; text-align:center;">#</span>
+          <span style="padding:11px 10px;">الباركود</span>
+          <span style="padding:11px 10px;">اسم المنتج</span>
+          <span style="padding:11px 8px; text-align:center;">الكمية</span>
+          <span style="padding:11px 10px;">سعر الشراء</span>
+          <span style="padding:11px 10px;">سعر البيع</span>
+          <span style="padding:11px 10px;">سعر المفرد</span>
+          <span style="padding:11px 10px;">تاريخ الإدخال</span>
+          <span style="padding:11px 10px;">ساعة الإدخال</span>
+          <span style="padding:11px 10px; text-align:center;">إجراءات</span>
+        </div>
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+          <div style="display:grid; grid-template-columns:36px 1.4fr 1.5fr .8fr 1fr 1fr 1fr 1.15fr .95fr .95fr; align-items:center; font-size:13px; border-top:1px solid #EDF0F6; background:{{ r.bg }};" style-hover="background:#F4F7FC">
+            <span style="padding:9px 8px; text-align:center; color:#8A94A8;">{{ r.n }}</span>
+            <span style="padding:9px 10px; font-size:12.5px;" dir="ltr">{{ r.barcode }}</span>
+            <span style="padding:9px 10px; font-weight:600;">{{ r.name }}</span>
+            <span style="padding:9px 8px; text-align:center; font-weight:700; color:{{ r.qtyColor }};" dir="ltr">{{ r.qty }}</span>
+            <span style="padding:9px 10px;" dir="ltr">{{ r.buy }}</span>
+            <span style="padding:9px 10px;" dir="ltr">{{ r.sell }}</span>
+            <span style="padding:9px 10px;" dir="ltr">{{ r.unit }}</span>
+            <span style="padding:9px 10px;" dir="ltr">{{ r.date }}</span>
+            <span style="padding:9px 10px;">{{ r.time }}</span>
+            <span style="padding:6px 10px; display:flex; gap:6px; justify-content:center;">
+              <button onClick="{{ r.edit }}" title="تعديل" style="width:30px; height:30px; border-radius:7px; background:#2563EB; border:none; cursor:pointer; display:grid; place-items:center;" style-hover="filter:brightness(1.15)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg>
+              </button>
+              <button onClick="{{ r.remove }}" title="حذف" style="width:30px; height:30px; border-radius:7px; background:#DC2626; border:none; cursor:pointer; display:grid; place-items:center;" style-hover="filter:brightness(1.15)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6"></path></svg>
+              </button>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap;">
+        <span style="font-size:12.5px; color:#3B4A66; font-weight:600;">{{ rangeLabel }}</span>
+        <div style="margin:0 auto; display:flex; align-items:center; gap:6px;">
+          <button onClick="{{ nextPage }}" disabled="{{ nextDisabled }}" style="border:1px solid #DCE1EB; background:#fff; border-radius:8px; padding:7px 16px; font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; color:#101C36;" style-hover="border-color:#2563EB">التالي</button>
+          <sc-for list="{{ pages }}" as="pg" hint-placeholder-count="3">
+            <button onClick="{{ pg.go }}" style="min-width:34px; height:32px; border-radius:8px; border:1px solid {{ pg.border }}; background:{{ pg.bg }}; color:{{ pg.color }}; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer;">{{ pg.label }}</button>
+          </sc-for>
+          <button onClick="{{ prevPage }}" disabled="{{ prevDisabled }}" style="border:1px solid #DCE1EB; background:{{ prevBg }}; border-radius:8px; padding:7px 16px; font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; color:#8A94A8;">السابق</button>
+        </div>
+        <span style="font-size:12.5px; color:#3B4A66; font-weight:600;">{{ rangeLabel2 }}</span>
+      </div>
+    </div>
+
+    <!-- اللوحة الجانبية -->
+    <div style="width:360px; flex-shrink:0; background:#fff; border:1px solid #DCE1EB; border-radius:14px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #DCE1EB;">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+          <div onClick="{{ t.select }}" style="display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px 11px; cursor:pointer; border-bottom:3px solid {{ t.line }}; background:{{ t.bg }};" style-hover="background:#F4F7FC">
+            <span dangerouslySetInnerHTML="{{ t.icon }}"></span>
+            <span style="font-size:11px; font-weight:{{ t.weight }}; color:{{ t.color }};">{{ t.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- إضافة منتج -->
+      <sc-if value="{{ tabAdd }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:16px 20px 20px; display:flex; flex-direction:column; gap:11px; overflow-y:auto;">
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">الباركود
+          <input value="{{ fBarcode }}" onChange="{{ setF.barcode }}" placeholder="امسح الباركود أو أدخله يدويًا" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">اسم المنتج
+          <input value="{{ fName }}" onChange="{{ setF.name }}" placeholder="أدخل اسم المنتج" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">سعر الشراء
+          <input type="number" value="{{ fBuy }}" onChange="{{ setF.buy }}" placeholder="0.00" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">سعر البيع
+          <input type="number" value="{{ fSell }}" onChange="{{ setF.sell }}" placeholder="0.00" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">سعر المفرد
+          <input type="number" value="{{ fUnit }}" onChange="{{ setF.unit }}" placeholder="0.00" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">الكمية
+          <input type="number" value="{{ fQty }}" onChange="{{ setF.qty }}" placeholder="0" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">تاريخ الإدخال
+            <input type="date" value="{{ fDate }}" onChange="{{ setF.date }}" style="border:1px solid #DCE1EB; border-radius:9px; padding:9px 10px; font-family:inherit; font-size:12.5px; outline-color:#2563EB;">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">ساعة الإدخال
+            <input type="time" value="{{ fTime }}" onChange="{{ setF.time }}" style="border:1px solid #DCE1EB; border-radius:9px; padding:9px 10px; font-family:inherit; font-size:12.5px; outline-color:#2563EB;">
+          </label>
+        </div>
+        <label style="display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:700; color:#101C36;">ملاحظات
+          <input value="{{ fNotes }}" onChange="{{ setF.notes }}" placeholder="ملاحظات إضافية (اختياري)" style="border:1px solid #DCE1EB; border-radius:9px; padding:10px 12px; font-family:inherit; font-size:13px; outline-color:#2563EB;">
+        </label>
+        <sc-if value="{{ fError }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FDECEC; color:#DC2626; border-radius:9px; padding:8px 12px; font-size:12px; font-weight:600;">{{ fError }}</div>
+        </sc-if>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button onClick="{{ newForm }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:7px; background:#2563EB; color:#fff; border:none; border-radius:9px; padding:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"></path></svg>
+            جديد
+          </button>
+          <button onClick="{{ saveForm }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:7px; background:#16A34A; color:#fff; border:none; border-radius:9px; padding:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>
+            {{ saveLabel }}
+          </button>
+          <button onClick="{{ clearForm }}" style="display:flex; align-items:center; justify-content:center; gap:7px; background:#64748B; color:#fff; border:none; border-radius:9px; padding:11px 14px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6"></path></svg>
+            مسح
+          </button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- طباعة باركود -->
+      <sc-if value="{{ tabPrint }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:18px 20px; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; font-weight:700;">اختر منتجاً لطباعة ملصق الباركود</div>
+        <div style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+          <sc-for list="{{ printList }}" as="p" hint-placeholder-count="5">
+            <div onClick="{{ p.select }}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; border:1.5px solid {{ p.border }}; background:{{ p.bg }}; border-radius:9px; padding:9px 13px; cursor:pointer; font-size:12.5px;">
+              <span style="font-weight:600;">{{ p.name }}</span>
+              <span dir="ltr" style="color:#8A94A8; font-size:11.5px;">{{ p.barcode }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasPrintSel }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1.5px dashed #101C36; border-radius:10px; padding:14px; display:flex; flex-direction:column; align-items:center; gap:6px;">
+            <div style="font-size:13px; font-weight:700;">{{ printName }}</div>
+            <div style="height:44px; width:190px; background:repeating-linear-gradient(90deg, #101C36 0 2px, transparent 2px 4px, #101C36 4px 7px, transparent 7px 9px, #101C36 9px 10px, transparent 10px 13px);"></div>
+            <div dir="ltr" style="font-size:12px; letter-spacing:2px;">{{ printBarcode }}</div>
+            <div style="font-size:13px; font-weight:700;" dir="ltr">{{ printPrice }} دينار</div>
+          </div>
+          <button onClick="{{ doPrint }}" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#2563EB; color:#fff; border:none; border-radius:9px; padding:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="7"></rect></svg>
+            طباعة الملصق
+          </button>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- قارئ باركود -->
+      <sc-if value="{{ tabScan }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:18px 20px; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; font-weight:700;">قارئ الباركود</div>
+        <div style="font-size:12px; color:#8A94A8;">امسح الباركود بالقارئ أو اكتبه ثم اضغط Enter للبحث الفوري</div>
+        <input value="{{ scanVal }}" onChange="{{ setScan }}" onKeyDown="{{ scanKey }}" placeholder="6281101000012" dir="ltr" style="border:2px solid #2563EB; border-radius:10px; padding:13px 14px; font-family:inherit; font-size:15px; text-align:center; letter-spacing:2px; outline:none;">
+        <sc-if value="{{ scanResult }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid #DCE1EB; border-radius:10px; padding:14px; background:#F4F7FC; display:flex; flex-direction:column; gap:6px; font-size:13px;">
+            <div style="font-weight:700; font-size:14px;">{{ scanName }}</div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:#8A94A8;">الكمية</span><b dir="ltr">{{ scanQty }}</b></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:#8A94A8;">سعر البيع</span><b dir="ltr">{{ scanSell }} دينار</b></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ scanMiss }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FDECEC; color:#DC2626; border-radius:9px; padding:9px 12px; font-size:12.5px; font-weight:600;">لا يوجد منتج بهذا الباركود</div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- صانع باركود -->
+      <sc-if value="{{ tabMake }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:18px 20px; display:flex; flex-direction:column; gap:14px;">
+        <div style="font-size:13px; font-weight:700;">صانع الباركود</div>
+        <div style="font-size:12px; color:#8A94A8;">أنشئ باركود جديداً غير مستخدم لمنتج قادم</div>
+        <div style="border:1.5px dashed #2563EB; border-radius:10px; padding:16px; display:flex; flex-direction:column; align-items:center; gap:8px; background:#F4F7FC;">
+          <div style="height:48px; width:200px; background:repeating-linear-gradient(90deg, #101C36 0 2px, transparent 2px 5px, #101C36 5px 8px, transparent 8px 10px, #101C36 10px 11px, transparent 11px 14px);"></div>
+          <div dir="ltr" style="font-size:14px; letter-spacing:3px; font-weight:600;">{{ genBarcode }}</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button onClick="{{ genNew }}" style="flex:1; background:#2563EB; color:#fff; border:none; border-radius:9px; padding:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">توليد جديد</button>
+          <button onClick="{{ genUse }}" style="flex:1; background:#16A34A; color:#fff; border:none; border-radius:9px; padding:11px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;" style-hover="filter:brightness(1.08)">استخدامه في الإضافة</button>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- الشريط السفلي -->
+  <div style="background:#101C36; color:#B9C4D8; display:flex; align-items:center; padding:0 22px; height:44px; font-size:12.5px; gap:8px;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D8" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path></svg>
+    المستخدم: مدير النظام
+    <span style="margin:0 auto; display:flex; align-items:center; gap:7px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      جميع الحقوق محفوظة © 2026 — تم التطوير بواسطة <a href="https://softodeviq.com" target="_blank" style="color:#7EA6E8;">softodeviq.com</a>
+    </span>
+    نسخة البرنامج: 1.0.0
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B9C4D8" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
+  </div>
+</div>
+
+<!-- ملصق الطباعة -->
+<sc-if value="{{ hasPrintSel }}" hint-placeholder-val="{{ false }}">
+  <div class="print-label" dir="rtl" style="display:none; width:80mm; height:50mm; margin:0 auto; border:2px dashed #101C36; border-radius:12px; flex-direction:column; align-items:center; justify-content:center; gap:2.5mm; text-align:center; font-family:'Noto Kufi Arabic',sans-serif; color:#000; padding:4mm;">
+    <div style="font-size:15px; font-weight:700;">{{ printName }}</div>
+    <div style="height:44px; width:190px; background:repeating-linear-gradient(90deg, #101C36 0 2px, transparent 2px 4px, #101C36 4px 7px, transparent 7px 9px, #101C36 9px 10px, transparent 10px 13px);"></div>
+    <div dir="ltr" style="font-size:12px; letter-spacing:2px;">{{ printBarcode }}</div>
+    <div style="font-size:18px; font-weight:700;" dir="ltr">{{ printPrice }} دينار</div>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;lowQtyThreshold&quot;: {&quot;editor&quot;: &quot;range&quot;, &quot;default&quot;: 40, &quot;min&quot;: 10, &quot;max&quot;: 100, &quot;step&quot;: 5, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;المخزون&quot;, &quot;unit&quot;: &quot; قطعة&quot;}}">
+class Component extends DCLogic {
+  state = {
+    clock: '', search: '', page: 1, tab: 0, editIdx: -1,
+    fBarcode: '', fName: '', fBuy: '', fSell: '', fUnit: '', fQty: '', fDate: '2026-08-04', fTime: '10:30', fNotes: '', fError: '',
+    printSel: -1, scanVal: '', scanIdx: -2, gen: '6281101000111', printingLabel: false,
+    products: [
+      { barcode: '6281101000012', name: 'فستق حلبي ممتاز', qty: 120, buy: 45000, sell: 70000, unit: 2000, date: '2026-08-04', time: '10:15 ص' },
+      { barcode: '6281101000029', name: 'لوز أمريكي', qty: 85, buy: 38000, sell: 60000, unit: 1500, date: '2026-08-04', time: '10:12 ص' },
+      { barcode: '6281101000036', name: 'جوز أمريكي', qty: 60, buy: 32000, sell: 55000, unit: 1200, date: '2026-08-04', time: '10:10 ص' },
+      { barcode: '6281101000043', name: 'تمر سكري خلاص', qty: 40, buy: 15000, sell: 25000, unit: 600, date: '2026-08-04', time: '10:05 ص' },
+      { barcode: '6281101000050', name: 'زبيب ذهبي', qty: 50, buy: 10000, sell: 18000, unit: 400, date: '2026-08-04', time: '10:02 ص' },
+      { barcode: '6281101000067', name: 'فول سوداني محمص', qty: 30, buy: 8000, sell: 15000, unit: 350, date: '2026-08-04', time: '09:58 ص' },
+      { barcode: '6281101000074', name: 'بندق تركي', qty: 25, buy: 60000, sell: 95000, unit: 2500, date: '2026-08-04', time: '09:55 ص' },
+      { barcode: '6281101000081', name: 'كاجو محمص', qty: 35, buy: 55000, sell: 90000, unit: 2200, date: '2026-08-04', time: '09:52 ص' },
+      { barcode: '6281101000098', name: 'لوز مقشر', qty: 70, buy: 40000, sell: 65000, unit: 1800, date: '2026-08-04', time: '09:48 ص' },
+      { barcode: '6281101000104', name: 'توت مجفف', qty: 110, buy: 20000, sell: 35000, unit: 800, date: '2026-08-04', time: '09:45 ص' },
+      { barcode: '6281101000111', name: 'كشمش أسود', qty: 45, buy: 12000, sell: 20000, unit: 500, date: '2026-08-03', time: '04:20 م' },
+      { barcode: '6281101000128', name: 'مشمش مجفف تركي', qty: 65, buy: 18000, sell: 30000, unit: 700, date: '2026-08-03', time: '03:45 م' },
+      { barcode: '6281101000135', name: 'حب شمس مملح', qty: 150, buy: 3000, sell: 6000, unit: 250, date: '2026-08-03', time: '01:30 م' },
+      { barcode: '6281101000142', name: 'حب رقي أبيض', qty: 90, buy: 4500, sell: 8000, unit: 300, date: '2026-08-03', time: '12:10 م' },
+      { barcode: '6281101000159', name: 'حب يقطين', qty: 38, buy: 9000, sell: 16000, unit: 450, date: '2026-08-03', time: '11:05 ص' },
+      { barcode: '6281101000166', name: 'خلطة مكسرات فاخرة', qty: 55, buy: 48000, sell: 78000, unit: 2000, date: '2026-08-02', time: '05:40 م' },
+      { barcode: '6281101000173', name: 'خلطة كرزات اقتصادية', qty: 80, buy: 22000, sell: 38000, unit: 1000, date: '2026-08-02', time: '04:15 م' },
+      { barcode: '6281101000180', name: 'فستق مقشر', qty: 20, buy: 70000, sell: 110000, unit: 3000, date: '2026-08-02', time: '02:50 م' },
+      { barcode: '6281101000197', name: 'جوز برازيلي', qty: 15, buy: 65000, sell: 100000, unit: 2800, date: '2026-08-02', time: '01:20 م' },
+      { barcode: '6281101000203', name: 'مكاديميا محمصة', qty: 12, buy: 90000, sell: 140000, unit: 3800, date: '2026-08-02', time: '11:40 ص' },
+      { barcode: '6281101000210', name: 'تين مجفف', qty: 48, buy: 14000, sell: 24000, unit: 600, date: '2026-08-01', time: '05:05 م' },
+      { barcode: '6281101000227', name: 'قمر الدين', qty: 33, buy: 7000, sell: 13000, unit: 400, date: '2026-08-01', time: '03:30 م' },
+      { barcode: '6281101000234', name: 'لوز محمص بالعسل', qty: 27, buy: 42000, sell: 68000, unit: 1900, date: '2026-08-01', time: '12:45 م' },
+      { barcode: '6281101000241', name: 'كاجو خام', qty: 58, buy: 50000, sell: 82000, unit: 2100, date: '2026-08-01', time: '10:25 ص' },
+      { barcode: '6281101000258', name: 'زبيب أخضر إيراني', qty: 72, buy: 11000, sell: 19000, unit: 450, date: '2026-08-01', time: '09:15 ص' }
+    ]
+  };
+
+  componentDidMount() {
+    this._t = setInterval(() => {
+      const d = new Date();
+      let h = d.getHours(); const ap = h >= 12 ? 'م' : 'ص'; h = h % 12 || 12;
+      const pad = n => String(n).padStart(2, '0');
+      this.setState({ clock: `${pad(h)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${ap}` });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+
+  setP(patch) { this.setState(patch); }
+
+  renderVals() {
+    const lowAt = this.props.lowQtyThreshold ?? 40;
+    const perPage = 10;
+    const s = this.state.search.trim();
+    const fmt = n => Number(n).toLocaleString('en-US');
+    const products = this.state.products;
+
+    const filtered = products.filter(p => !s || p.name.includes(s) || p.barcode.includes(s));
+    const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
+    const page = Math.min(this.state.page, pageCount);
+    const slice = filtered.slice((page - 1) * perPage, page * perPage);
+
+    const rows = slice.map((p, i) => {
+      const gi = products.indexOf(p);
+      return {
+        n: (page - 1) * perPage + i + 1,
+        barcode: p.barcode, name: p.name, qty: p.qty,
+        buy: fmt(p.buy), sell: fmt(p.sell), unit: fmt(p.unit),
+        date: p.date, time: p.time,
+        qtyColor: p.qty >= 50 ? '#16A34A' : p.qty >= lowAt ? '#EA8C00' : '#EA580C',
+        bg: this.state.editIdx === gi ? '#EAF1FE' : '#fff',
+        edit: () => this.setState({
+          tab: 0, editIdx: gi, fError: '',
+          fBarcode: p.barcode, fName: p.name, fBuy: String(p.buy), fSell: String(p.sell),
+          fUnit: String(p.unit), fQty: String(p.qty), fDate: p.date, fTime: '10:30', fNotes: ''
+        }),
+        remove: () => this.setState(st => ({ products: st.products.filter(x => x !== p), editIdx: -1 }))
+      };
+    });
+
+    const pages = [];
+    const addPage = n => pages.push({
+      label: String(n),
+      bg: n === page ? '#2563EB' : '#fff', color: n === page ? '#fff' : '#101C36',
+      border: n === page ? '#2563EB' : '#DCE1EB',
+      go: () => this.setState({ page: n })
+    });
+    if (pageCount <= 5) { for (let i = 1; i <= pageCount; i++) addPage(i); }
+    else {
+      addPage(1); addPage(2); addPage(3);
+      pages.push({ label: '…', bg: '#fff', color: '#8A94A8', border: 'transparent', go: () => {} });
+      addPage(pageCount);
+    }
+
+    const from = filtered.length ? (page - 1) * perPage + 1 : 0;
+    const to = Math.min(page * perPage, filtered.length);
+
+    const tabIcons = [
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B4A66" stroke-width="1.9"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/></svg>',
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B4A66" stroke-width="1.9"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>',
+      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B4A66" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9v6M10 9v6M13 9v6M17 9v6"/></svg>'
+    ];
+    const tabs = ['إضافة منتج', 'طباعة باركود', 'قارئ باركود', 'صانع باركود'].map((label, i) => ({
+      label, icon: { __html: tabIcons[i] },
+      line: this.state.tab === i ? '#2563EB' : 'transparent',
+      bg: this.state.tab === i ? '#F4F7FC' : '#fff',
+      color: this.state.tab === i ? '#2563EB' : '#3B4A66',
+      weight: this.state.tab === i ? 700 : 600,
+      select: () => this.setState({ tab: i })
+    }));
+
+    const psel = this.state.printSel >= 0 ? products[this.state.printSel] : null;
+    const printList = products.slice(0, 12).map((p, i) => ({
+      name: p.name, barcode: p.barcode,
+      border: this.state.printSel === i ? '#2563EB' : '#DCE1EB',
+      bg: this.state.printSel === i ? '#EAF1FE' : '#fff',
+      select: () => this.setState({ printSel: i })
+    }));
+
+    const scanP = this.state.scanIdx >= 0 ? products[this.state.scanIdx] : null;
+
+    const clearFields = { fBarcode: '', fName: '', fBuy: '', fSell: '', fUnit: '', fQty: '', fNotes: '', fError: '', editIdx: -1 };
+    const saveForm = () => {
+      const st = this.state;
+      if (!st.fName.trim()) { this.setState({ fError: 'أدخل اسم المنتج' }); return; }
+      if (!Number(st.fSell)) { this.setState({ fError: 'أدخل سعر بيع صحيحاً' }); return; }
+      const item = {
+        barcode: st.fBarcode.trim() || ('62811010' + String(Math.floor(Math.random() * 90000) + 10000)),
+        name: st.fName.trim(), qty: Number(st.fQty) || 0,
+        buy: Number(st.fBuy) || 0, sell: Number(st.fSell) || 0, unit: Number(st.fUnit) || 0,
+        date: st.fDate || '2026-08-04',
+        time: (st.fTime || '10:30') + (Number((st.fTime || '10:30').split(':')[0]) >= 12 ? ' م' : ' ص')
+      };
+      this.setState(prev => {
+        const arr = prev.products.slice();
+        if (prev.editIdx >= 0) arr[prev.editIdx] = item; else arr.unshift(item);
+        return { products: arr, ...clearFields };
+      });
+    };
+
+    return {
+      clock: this.state.clock || '10:30:45 ص',
+      search: this.state.search,
+      setSearch: e => this.setState({ search: e.target.value, page: 1 }),
+      refresh: () => this.setState({ search: '', page: 1 }),
+      exportExcel: () => {
+        const head = '#,الباركود,اسم المنتج,الكمية,سعر الشراء,سعر البيع,سعر المفرد,تاريخ الإدخال\n';
+        const body = products.map((p, i) => [i + 1, p.barcode, p.name, p.qty, p.buy, p.sell, p.unit, p.date].join(',')).join('\n');
+        const blob = new Blob(['\ufeff' + head + body], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'المنتجات.csv'; a.click();
+      },
+      rows, pages,
+      rangeLabel: `عرض ${from} إلى ${to} من ${filtered.length} منتج`,
+      rangeLabel2: `${from} إلى ${to} من ${filtered.length} منتج`,
+      nextPage: () => this.setState({ page: Math.min(pageCount, page + 1) }),
+      prevPage: () => this.setState({ page: Math.max(1, page - 1) }),
+      nextDisabled: page >= pageCount, prevDisabled: page <= 1,
+      prevBg: page <= 1 ? '#F4F7FC' : '#fff',
+      tabs,
+      tabAdd: this.state.tab === 0, tabPrint: this.state.tab === 1,
+      tabScan: this.state.tab === 2, tabMake: this.state.tab === 3,
+      fBarcode: this.state.fBarcode, fName: this.state.fName, fBuy: this.state.fBuy,
+      fSell: this.state.fSell, fUnit: this.state.fUnit, fQty: this.state.fQty,
+      fDate: this.state.fDate, fTime: this.state.fTime, fNotes: this.state.fNotes, fError: this.state.fError,
+      setF: {
+        barcode: e => this.setState({ fBarcode: e.target.value }),
+        name: e => this.setState({ fName: e.target.value }),
+        buy: e => this.setState({ fBuy: e.target.value }),
+        sell: e => this.setState({ fSell: e.target.value }),
+        unit: e => this.setState({ fUnit: e.target.value }),
+        qty: e => this.setState({ fQty: e.target.value }),
+        date: e => this.setState({ fDate: e.target.value }),
+        time: e => this.setState({ fTime: e.target.value }),
+        notes: e => this.setState({ fNotes: e.target.value })
+      },
+      saveLabel: this.state.editIdx >= 0 ? 'تحديث' : 'حفظ',
+      saveForm,
+      newForm: () => this.setState(clearFields),
+      clearForm: () => this.setState(clearFields),
+      printList,
+      hasPrintSel: !!psel,
+      printName: psel ? psel.name : '', printBarcode: psel ? psel.barcode : '',
+      printPrice: psel ? fmt(psel.sell) : '',
+      doPrint: () => window.print(),
+      printingLabel: false,
+      scanVal: this.state.scanVal,
+      setScan: e => this.setState({ scanVal: e.target.value, scanIdx: -2 }),
+      scanKey: e => {
+        if (e.key !== 'Enter') return;
+        const v = this.state.scanVal.trim();
+        const idx = products.findIndex(p => p.barcode === v);
+        this.setState({ scanIdx: idx });
+      },
+      scanResult: !!scanP,
+      scanMiss: this.state.scanIdx === -1,
+      scanName: scanP ? scanP.name : '', scanQty: scanP ? String(scanP.qty) : '',
+      scanSell: scanP ? fmt(scanP.sell) : '',
+      genBarcode: this.state.gen,
+      genNew: () => this.setState({ gen: '6281101' + String(Math.floor(Math.random() * 900000) + 100000) }),
+      genUse: () => this.setState({ tab: 0, fBarcode: this.state.gen })
+    };
+  }
+}
+</script>
+</body>
+</html>

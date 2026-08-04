@@ -1,0 +1,29 @@
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# local databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# env
+.env
+.env.local
+.env*.local
+
+# tests
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# misc
+.DS_Store
+npm-debug.log*
+
+e2e/.auth/

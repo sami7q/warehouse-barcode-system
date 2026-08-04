@@ -1,0 +1,247 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import TopBar from "@/components/TopBar";
+import BottomBar from "@/components/BottomBar";
+import SearchBar from "@/components/SearchBar";
+import ProductTable from "@/components/ProductTable";
+import Sidebar, { type TabKey } from "@/components/Sidebar";
+import AddProductTab, {
+  EMPTY_FORM,
+  type ProductFormState,
+} from "@/components/tabs/AddProductTab";
+import PrintTab from "@/components/tabs/PrintTab";
+import ScanTab from "@/components/tabs/ScanTab";
+import MakerTab from "@/components/tabs/MakerTab";
+import type { ApiProduct } from "@/lib/types";
+
+const PER_PAGE = 10;
+
+function toNonNegativeInt(raw: string): number | null {
+  const s = raw.trim();
+  if (s === "") return 0;
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 0) return null;
+  return n;
+}
+
+export default function Home() {
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [tab, setTab] = useState<TabKey>("add");
+
+  const [form, setForm] = useState<ProductFormState>(EMPTY_FORM);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [created, setCreated] = useState<{
+    barcode: string;
+    svg: string;
+  } | null>(null);
+
+  const [printSel, setPrintSel] = useState<number[]>([]);
+
+  const fetchProducts = useCallback(async () => {
+    const res = await fetch("/api/products");
+    if (!res.ok) return;
+    const data = (await res.json()) as { products: ApiProduct[] };
+    setProducts(data.products);
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Same matching rule as the scanner lookup: exact barcode OR partial name.
+  const filtered = useMemo(() => {
+    const q = search.trim();
+    if (!q) return products;
+    const needle = q.toLowerCase();
+    return products.filter(
+      (p) => p.barcode === q || p.name.toLowerCase().includes(needle),
+    );
+  }, [products, search]);
+
+  const onField = (field: keyof ProductFormState, value: string) => {
+    setForm((f) => ({ ...f, [field]: value }));
+  };
+
+  const clearForm = () => {
+    setForm(EMPTY_FORM);
+    setFormError("");
+    setEditingId(null);
+    setCreated(null);
+  };
+
+  const save = async () => {
+    setFormError("");
+    if (!form.name.trim()) {
+      setFormError("أدخل اسم المنتج");
+      return;
+    }
+    const buy = toNonNegativeInt(form.buy);
+    const sell = toNonNegativeInt(form.sell);
+    const unit = toNonNegativeInt(form.unit);
+    const qty = toNonNegativeInt(form.qty);
+    if (buy === null || sell === null || unit === null || qty === null) {
+      setFormError("الأسعار والكمية يجب أن تكون أرقاماً صحيحة غير سالبة");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        purchase_price: buy,
+        sell_price: sell,
+        unit_price: unit,
+        quantity: qty,
+        barcode: form.barcode.trim() || undefined,
+      };
+      const res = await fetch(
+        editingId ? `/api/products/${editingId}` : "/api/products",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setFormError(
+          (data as { error?: string }).error ?? "حدث خطأ أثناء الحفظ",
+        );
+        return;
+      }
+      if (!editingId && (data as { svg?: string }).svg) {
+        setCreated({
+          barcode: (data as { product: ApiProduct }).product.barcode,
+          svg: (data as { svg: string }).svg,
+        });
+      } else {
+        setCreated(null);
+      }
+      setForm(EMPTY_FORM);
+      setEditingId(null);
+      await fetchProducts();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onEdit = (p: ApiProduct) => {
+    setTab("add");
+    setEditingId(p.id);
+    setCreated(null);
+    setFormError("");
+    setForm({
+      barcode: p.barcode,
+      name: p.name,
+      buy: String(p.purchasePrice),
+      sell: String(p.sellPrice),
+      unit: String(p.unitPrice),
+      qty: String(p.quantity),
+    });
+  };
+
+  const onDelete = async (p: ApiProduct) => {
+    if (!window.confirm(`هل أنت متأكد من حذف "${p.name}"؟`)) return;
+    const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
+    if (res.ok) {
+      if (editingId === p.id) clearForm();
+      setPrintSel((sel) => sel.filter((id) => id !== p.id));
+      await fetchProducts();
+    }
+  };
+
+  const onExport = () => {
+    const a = document.createElement("a");
+    a.href = "/api/products/export";
+    a.download = "products.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const onRefresh = async () => {
+    setSearch("");
+    setPage(1);
+    await fetchProducts();
+  };
+
+  const onPrint = () => {
+    if (printSel.length === 0) return;
+    window.open(`/print?ids=${printSel.join(",")}`, "_blank");
+  };
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#E8EBF2] text-[#101C36]">
+      <TopBar />
+
+      <div className="flex flex-1 items-stretch gap-3.5 px-[18px] py-4">
+        <div className="flex min-w-0 flex-1 flex-col rounded-[14px] border border-[#DCE1EB] bg-white px-5 py-[18px]">
+          <SearchBar
+            search={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            onRefresh={onRefresh}
+            onExport={onExport}
+          />
+          <ProductTable
+            products={filtered}
+            page={page}
+            perPage={PER_PAGE}
+            editingId={editingId}
+            onPageChange={setPage}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        </div>
+
+        <Sidebar tab={tab} onTabChange={setTab}>
+          {tab === "add" ? (
+            <AddProductTab
+              form={form}
+              error={formError}
+              saving={saving}
+              editing={editingId !== null}
+              created={created}
+              onField={onField}
+              onSave={save}
+              onNew={clearForm}
+              onClear={clearForm}
+            />
+          ) : null}
+          {tab === "print" ? (
+            <PrintTab
+              products={products}
+              selected={printSel}
+              onToggle={(id) =>
+                setPrintSel((sel) =>
+                  sel.includes(id)
+                    ? sel.filter((x) => x !== id)
+                    : [...sel, id],
+                )
+              }
+              onPrint={onPrint}
+            />
+          ) : null}
+          {tab === "scan" ? <ScanTab /> : null}
+          {tab === "make" ? (
+            <MakerTab
+              onUseInAdd={(barcode) => {
+                setTab("add");
+                setForm((f) => ({ ...f, barcode }));
+              }}
+            />
+          ) : null}
+        </Sidebar>
+      </div>
+
+      <BottomBar />
+    </div>
+  );
+}
