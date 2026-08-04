@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { productCreateSchema, productUpdateSchema } from "@/lib/validation";
+import {
+  MAX_MONEY_VALUE,
+  MAX_NAME_LENGTH,
+  MAX_QUANTITY,
+  productCreateSchema,
+  productUpdateSchema,
+} from "@/lib/validation";
 
 const valid = {
   name: "فستق حلبي",
@@ -72,6 +78,68 @@ describe("productCreateSchema", () => {
     expect(
       productCreateSchema.safeParse({ ...valid, barcode: "abc123" }).success,
     ).toBe(false);
+  });
+});
+
+describe("productCreateSchema — audit bounds", () => {
+  it(`rejects a name longer than ${MAX_NAME_LENGTH} characters with a clear message`, () => {
+    const r = productCreateSchema.safeParse({
+      ...valid,
+      name: "م".repeat(MAX_NAME_LENGTH + 1),
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0].message).toContain("اسم المنتج");
+    }
+  });
+
+  it(`accepts a name of exactly ${MAX_NAME_LENGTH} characters`, () => {
+    expect(
+      productCreateSchema.safeParse({
+        ...valid,
+        name: "م".repeat(MAX_NAME_LENGTH),
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts Arabic mixed with emoji and RTL control characters (round-trips intact)", () => {
+    const tricky = "فستق‏حلبي ‫ممتاز‬ 🥜✨";
+    const r = productCreateSchema.safeParse({ ...valid, name: tricky });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.name).toBe(tricky);
+  });
+
+  it("rejects absurdly large prices and quantities", () => {
+    expect(
+      productCreateSchema.safeParse({
+        ...valid,
+        sell_price: MAX_MONEY_VALUE + 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      productCreateSchema.safeParse({
+        ...valid,
+        quantity: MAX_QUANTITY + 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      productCreateSchema.safeParse({
+        ...valid,
+        purchase_price: Number.MAX_SAFE_INTEGER,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts zero for prices and quantity", () => {
+    expect(
+      productCreateSchema.safeParse({
+        ...valid,
+        purchase_price: 0,
+        sell_price: 0,
+        unit_price: 0,
+        quantity: 0,
+      }).success,
+    ).toBe(true);
   });
 });
 

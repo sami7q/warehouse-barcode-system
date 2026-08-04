@@ -66,6 +66,7 @@ export default function AddProductTab({
           onChange={(e) => onField("name", e.target.value)}
           placeholder="أدخل اسم المنتج"
           data-testid="f-name"
+          maxLength={200}
           className={inputCls}
         />
       </label>

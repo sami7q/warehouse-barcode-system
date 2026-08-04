@@ -9,6 +9,7 @@ import { getBarcodePrefix } from "@/lib/constants";
 import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { productCreateSchema } from "@/lib/validation";
 import { isUniqueViolation } from "@/lib/db-errors";
+import { serialized, withBusyRetry } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,9 @@ export async function POST(req: NextRequest) {
   const now = Date.now();
 
   try {
-    const product = await db.transaction(async (tx) => {
+    const product = await serialized(() =>
+      withBusyRetry(() =>
+        db.transaction(async (tx) => {
       const placeholder = input.barcode ?? `pending-${randomUUID()}`;
       const [inserted] = await tx
         .insert(products)
@@ -116,8 +119,10 @@ export async function POST(req: NextRequest) {
         .set({ barcode })
         .where(eq(products.id, inserted.id))
         .returning();
-      return updated;
-    });
+          return updated;
+        }),
+      ),
+    );
 
     return NextResponse.json(
       { product, svg: renderBarcodeSvg(product.barcode) },

@@ -16,12 +16,13 @@ import MakerTab from "@/components/tabs/MakerTab";
 import type { ApiProduct } from "@/lib/types";
 
 const PER_PAGE = 10;
+const MAX_INPUT_VALUE = 1_000_000_000;
 
 function toNonNegativeInt(raw: string): number | null {
   const s = raw.trim();
   if (s === "") return 0;
   const n = Number(s);
-  if (!Number.isInteger(n) || n < 0) return null;
+  if (!Number.isInteger(n) || n < 0 || n > MAX_INPUT_VALUE) return null;
   return n;
 }
 
@@ -41,12 +42,21 @@ export default function Home() {
   } | null>(null);
 
   const [printSel, setPrintSel] = useState<number[]>([]);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchProducts = useCallback(async () => {
-    const res = await fetch("/api/products");
-    if (!res.ok) return;
-    const data = (await res.json()) as { products: ApiProduct[] };
-    setProducts(data.products);
+    try {
+      const res = await fetch("/api/products");
+      if (!res.ok) {
+        setLoadError(true);
+        return;
+      }
+      const data = (await res.json()) as { products: ApiProduct[] };
+      setProducts(data.products);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -190,6 +200,20 @@ export default function Home() {
             onRefresh={onRefresh}
             onExport={onExport}
           />
+          {loadError ? (
+            <div
+              data-testid="load-error"
+              className="mb-3 flex items-center justify-between rounded-[9px] bg-[#FDECEC] px-4 py-3 text-[13px] font-semibold text-[#DC2626]"
+            >
+              تعذر تحميل المنتجات — تحقق من الاتصال ثم أعد المحاولة
+              <button
+                onClick={() => fetchProducts()}
+                className="cursor-pointer rounded-[7px] border-none bg-[#DC2626] px-3 py-1.5 font-[inherit] text-[12px] font-bold text-white hover:brightness-110"
+              >
+                إعادة المحاولة
+              </button>
+            </div>
+          ) : null}
           <ProductTable
             products={filtered}
             page={page}

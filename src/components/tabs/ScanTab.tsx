@@ -13,6 +13,11 @@ export default function ScanTab() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [scan, setScan] = useState<ScanState>({ status: "idle" });
+  // Guards for presentation-stand scanners firing several scans per second:
+  // only the most recent request may write the result (no stale overwrite),
+  // and superseded in-flight requests are aborted outright.
+  const scanSeq = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Stay focused at all times: on mount, on blur, on any click in the tab.
   useEffect(() => {
@@ -25,21 +30,30 @@ export default function ScanTab() {
 
   const lookup = async (barcode: string) => {
     if (!barcode) return;
+    const seq = ++scanSeq.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setValue("");
+    refocus();
     try {
       const res = await fetch(
         `/api/products?barcode=${encodeURIComponent(barcode)}`,
+        { signal: controller.signal },
       );
+      if (seq !== scanSeq.current) return; // a newer scan superseded this one
       if (res.ok) {
         const data = (await res.json()) as { product: ApiProduct };
+        if (seq !== scanSeq.current) return;
         setScan({ status: "found", product: data.product });
       } else {
         setScan({ status: "miss" });
       }
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      if (seq !== scanSeq.current) return;
       setScan({ status: "miss" });
     }
-    setValue("");
-    refocus();
   };
 
   return (
