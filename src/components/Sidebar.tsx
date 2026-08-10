@@ -52,7 +52,7 @@ type Props = {
 
 export default function Sidebar({ tab, onTabChange, children }: Props) {
   return (
-    <div className="flex w-[360px] shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#DCE1EB] bg-white">
+    <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#DCE1EB] bg-white lg:w-[360px]">
       <div className="grid grid-cols-4 border-b border-[#DCE1EB]">
         {TABS.map((t) => {
           const active = t.key === tab;
@@ -61,17 +61,19 @@ export default function Sidebar({ tab, onTabChange, children }: Props) {
               key={t.key}
               onClick={() => onTabChange(t.key)}
               data-testid={`tab-${t.key}`}
-              className={`flex cursor-pointer flex-col items-center gap-1.5 px-1.5 pb-[11px] pt-3.5 hover:bg-[#F4F7FC] ${
+              className={`flex cursor-pointer flex-col items-center gap-1 px-1 pb-2.5 pt-3 hover:bg-[#F4F7FC] sm:gap-1.5 sm:px-1.5 sm:pb-[11px] sm:pt-3.5 ${
                 active
                   ? "border-b-[3px] border-[#2563EB] bg-[#F4F7FC]"
                   : "border-b-[3px] border-transparent bg-white"
               }`}
             >
               <span style={{ color: active ? "#2563EB" : "#3B4A66" }}>
-                <span className="[&_svg]:stroke-current">{t.icon}</span>
+                <span className="[&_svg]:h-4 [&_svg]:w-4 [&_svg]:stroke-current sm:[&_svg]:h-5 sm:[&_svg]:w-5">
+                  {t.icon}
+                </span>
               </span>
               <span
-                className={`text-[11px] ${
+                className={`text-center text-[9.5px] leading-tight sm:text-[11px] ${
                   active ? "font-bold text-[#2563EB]" : "font-semibold text-[#3B4A66]"
                 }`}
               >

@@ -500,3 +500,103 @@ size once in the printer driver defaults (Printing Preferences → Page Setup �
 confirm a first-attempt read — the barcode module width (0.319mm) is above
 the standard scannable minimum, so a clean thermal print should read
 immediately.
+
+---
+
+## Remember Me & Full Mobile Responsiveness
+
+Two feature additions, requested directly by the business owner: a "تذكرني"
+(remember me) login option, and a fully responsive layout for phones.
+
+### تذكرني (Remember me)
+
+- New checkbox on `/login`, checked by default, `name="remember"`.
+- Wired through Auth.js v5's Credentials provider: `authorize()` now accepts
+  a `remember` field and attaches it to the returned user; a `jwt` callback
+  copies it onto the token; a custom `jwt.encode` (wrapping the library's
+  default `encode` from `next-auth/jwt`) selects the session length from it —
+  **30 days when checked, 1 day when unchecked** (`REMEMBER_ME_MAX_AGE_SECONDS`
+  / `DEFAULT_SESSION_MAX_AGE_SECONDS` in `src/lib/constants.ts`, selected by
+  the pure, unit-tested `resolveSessionMaxAge()`). This is the standard
+  documented Auth.js recipe for per-login session length — the cookie's own
+  physical `Max-Age` stays at the 30-day ceiling either way, but the *token's
+  own* `exp` claim is what's shortened when unchecked, and Auth.js validates
+  that claim server-side on every request, so an unremembered session
+  functionally expires after a day regardless of whether the cookie file is
+  still sitting in the browser.
+- **Test coverage note, stated plainly:** the exact resulting duration is
+  verified at the unit level (`resolveSessionMaxAge` — both branches, and
+  that "remembered" is strictly longer). Confirming the *exact* number
+  end-to-end would require decrypting Auth.js v5's session token, which is an
+  encrypted-JWE scheme with a per-cookie salt derivation — reimplementing
+  that in a test isn't worth the fragility it would add. Instead, the e2e
+  suite (`e2e/remember-me.spec.ts`) proves both code paths actually run in
+  the live app without error: checkbox present and checked by default, login
+  succeeds and issues a real session cookie whether checked or unchecked, and
+  an unremembered session works immediately for authenticated API calls.
+
+### Mobile responsiveness
+
+The UI was originally built once, desktop-only, per the reference design
+(Section 0 of `plan.md` calls it a desktop screenshot). Every screen is now
+responsive from ~360px phone widths up through desktop, Tailwind
+`sm`/`md`/`lg` breakpoints throughout:
+
+- **Product table → cards on mobile.** The 10-column grid table is
+  unreadable squeezed onto a phone, so below the `md` breakpoint the table is
+  replaced with one card per product (name, barcode, the three prices, the
+  colored quantity badge, date/time, and full-width إجراءات buttons) built
+  from the same data. The desktop grid table remains exactly as before at
+  `md` and up (also gained an `overflow-x-auto` safety net so it scrolls
+  instead of ever forcing page-level horizontal scroll in the awkward
+  tablet range). The two views use **different `data-testid`s**
+  (`product-row` vs. `product-row-mobile`) specifically so the existing
+  desktop-scoped test suite keeps counting and asserting against exactly
+  what it always did — nothing in the original 99 tests needed to change.
+- **Top bar / bottom bar** compact on mobile: the decorative window-chrome
+  dots and the copyright/version strip hide below `sm` (they're
+  non-functional and the real content — brand, clock, logout, user, tabs —
+  stays visible); logo, title, and clock shrink a step.
+- **Search bar** stacks the search box full-width above the export/refresh
+  buttons on mobile instead of forcing them onto one cramped row.
+- **Sidebar (4 tabs + panel)** goes from a fixed 360px side column to full
+  width, stacked *below* the table on mobile (`flex-col` under `lg`,
+  `flex-row` at `lg` and up) — tab icons/labels shrink a step so all four
+  still fit one row on a 360px-wide phone.
+- **Pagination** row wraps and centers instead of overflowing when there are
+  many page-number buttons; the redundant duplicate range label (originally
+  shown on both sides of the pager for desktop symmetry) hides on mobile to
+  save vertical space.
+- **Global safety net:** `overflow-x: hidden` + `max-width: 100%` on
+  `html, body`, plus an explicit `viewport` export in the root layout — no
+  page can force horizontal scrolling regardless of what any individual
+  component does.
+
+**New test coverage (`e2e/mobile.spec.ts`, iPhone 12/13-sized 390×844
+viewport):** no horizontal overflow on the home screen or after switching
+through all four tabs; product table renders as cards (and the desktop grid
+row is confirmed *hidden*, not just visually smaller); edit and delete work
+from a mobile card; top bar and bottom bar render without overflow; the
+barcode-scanner keystroke simulation still resolves correctly at mobile
+width; the login page (including the تذكرني checkbox) fits and a full login
+completes. Also visually spot-checked with real screenshots (login, home
+with seeded products, scan tab, print tab) before deploying — the product
+cards render cleanly with correctly colored quantity badges, nothing clips.
+
+### Test results after this change
+
+**113 tests, 100% pass: 67 unit/integration (vitest) + 46 e2e (Playwright).**
+`next build` clean, zero TypeScript errors.
+
+### Verified live on production
+
+Deployed to https://warehouse-barcode-system.vercel.app and smoke-tested at
+the actual mobile viewport against the real URL (not a local server):
+
+```
+login page overflow (mobile): { scrollW: 390, clientW: 390 }   ← no overflow
+remember-me checked by default: true
+home page overflow (mobile): { scrollW: 390, clientW: 390 }    ← no overflow
+scan tab reachable on mobile: true
+session cookie issued: true
+```

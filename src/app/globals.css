@@ -6,6 +6,11 @@ body {
   padding: 0;
   background: #e8ebf2;
   color: #101c36;
+  /* Safety net: no element should be able to force page-level horizontal
+     scroll on mobile — individual wide content (e.g. the product table)
+     scrolls inside its own container instead. */
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 a {

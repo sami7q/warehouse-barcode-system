@@ -47,7 +47,7 @@ export default function AddProductTab({
   onClear,
 }: Props) {
   return (
-    <div className="flex flex-col gap-[11px] overflow-y-auto px-5 pb-5 pt-4">
+    <div className="flex flex-col gap-[11px] overflow-y-auto px-4 pb-5 pt-4 sm:px-5">
       <label className={labelCls}>
         الباركود
         <input

@@ -39,118 +39,229 @@ export default function ProductTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-[10px] border border-[#DCE1EB]">
+      {slice.length === 0 ? (
         <div
-          className={`grid ${GRID} bg-[#101C36] text-[12.5px] font-semibold text-white`}
+          data-testid="empty-state"
+          className="rounded-[10px] border border-[#DCE1EB] bg-white px-4 py-8 text-center text-[13px] text-[#8A94A8]"
         >
-          <span className="px-2 py-[11px] text-center">#</span>
-          <span className="px-2.5 py-[11px]">الباركود</span>
-          <span className="px-2.5 py-[11px]">اسم المنتج</span>
-          <span className="px-2.5 py-[11px]">سعر الشراء</span>
-          <span className="px-2.5 py-[11px]">سعر البيع</span>
-          <span className="px-2.5 py-[11px]">سعر المفرد</span>
-          <span className="px-2 py-[11px] text-center">الكمية</span>
-          <span className="px-2.5 py-[11px]">تاريخ الإدخال</span>
-          <span className="px-2.5 py-[11px]">ساعة الإدخال</span>
-          <span className="px-2.5 py-[11px] text-center">إجراءات</span>
+          لا توجد منتجات
         </div>
-
-        {slice.length === 0 ? (
-          <div className="border-t border-[#EDF0F6] bg-white px-4 py-8 text-center text-[13px] text-[#8A94A8]">
-            لا توجد منتجات
-          </div>
-        ) : (
-          slice.map((p, i) => {
-            const tier = qtyTier(p.quantity);
-            const color = QTY_COLORS[tier];
-            return (
+      ) : (
+        <>
+          {/* Desktop / tablet: full column table, horizontal-scrolls as a
+              last resort rather than ever forcing page-level overflow. */}
+          <div className="hidden overflow-x-auto rounded-[10px] border border-[#DCE1EB] md:block">
+            <div className="min-w-[760px]">
               <div
-                key={p.id}
-                data-testid="product-row"
-                className={`grid ${GRID} items-center border-t border-[#EDF0F6] text-[13px] hover:bg-[#F4F7FC] ${
-                  editingId === p.id ? "bg-[#EAF1FE]" : "bg-white"
-                }`}
+                className={`grid ${GRID} bg-[#101C36] text-[12.5px] font-semibold text-white`}
               >
-                <span className="px-2 py-[9px] text-center text-[#8A94A8]">
-                  {(current - 1) * perPage + i + 1}
-                </span>
-                <span className="px-2.5 py-[9px] text-[12.5px]" dir="ltr">
-                  {p.barcode}
-                </span>
-                <span className="px-2.5 py-[9px] font-semibold">{p.name}</span>
-                <span className="px-2.5 py-[9px]" dir="ltr">
-                  {fmtNumber(p.purchasePrice)}
-                </span>
-                <span className="px-2.5 py-[9px]" dir="ltr">
-                  {fmtNumber(p.sellPrice)}
-                </span>
-                <span className="px-2.5 py-[9px]" dir="ltr">
-                  {fmtNumber(p.unitPrice)}
-                </span>
-                <span className="px-2 py-[9px] text-center">
-                  <span
-                    dir="ltr"
-                    data-testid="qty-badge"
-                    data-tier={tier}
-                    className="inline-block min-w-[38px] rounded-full px-2 py-0.5 text-[12.5px] font-bold"
-                    style={{ color, background: `${color}1A` }}
-                  >
-                    {p.quantity}
-                  </span>
-                </span>
-                <span className="px-2.5 py-[9px]" dir="ltr">
-                  {fmtDate(p.createdAt)}
-                </span>
-                <span className="px-2.5 py-[9px]">{fmtTime(p.createdAt)}</span>
-                <span className="flex justify-center gap-1.5 px-2.5 py-1.5">
-                  <button
-                    onClick={() => onEdit(p)}
-                    title="تعديل"
-                    className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#2563EB] hover:brightness-115"
-                  >
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#fff"
-                      strokeWidth="2"
-                    >
-                      <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onDelete(p)}
-                    title="حذف"
-                    className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#DC2626] hover:brightness-115"
-                  >
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#fff"
-                      strokeWidth="2"
-                    >
-                      <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
-                    </svg>
-                  </button>
-                </span>
+                <span className="px-2 py-[11px] text-center">#</span>
+                <span className="px-2.5 py-[11px]">الباركود</span>
+                <span className="px-2.5 py-[11px]">اسم المنتج</span>
+                <span className="px-2.5 py-[11px]">سعر الشراء</span>
+                <span className="px-2.5 py-[11px]">سعر البيع</span>
+                <span className="px-2.5 py-[11px]">سعر المفرد</span>
+                <span className="px-2 py-[11px] text-center">الكمية</span>
+                <span className="px-2.5 py-[11px]">تاريخ الإدخال</span>
+                <span className="px-2.5 py-[11px]">ساعة الإدخال</span>
+                <span className="px-2.5 py-[11px] text-center">إجراءات</span>
               </div>
-            );
-          })
-        )}
-      </div>
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-3.5">
+              {slice.map((p, i) => {
+                const tier = qtyTier(p.quantity);
+                const color = QTY_COLORS[tier];
+                return (
+                  <div
+                    key={p.id}
+                    data-testid="product-row"
+                    className={`grid ${GRID} items-center border-t border-[#EDF0F6] text-[13px] hover:bg-[#F4F7FC] ${
+                      editingId === p.id ? "bg-[#EAF1FE]" : "bg-white"
+                    }`}
+                  >
+                    <span className="px-2 py-[9px] text-center text-[#8A94A8]">
+                      {(current - 1) * perPage + i + 1}
+                    </span>
+                    <span className="px-2.5 py-[9px] text-[12.5px]" dir="ltr">
+                      {p.barcode}
+                    </span>
+                    <span className="px-2.5 py-[9px] font-semibold">
+                      {p.name}
+                    </span>
+                    <span className="px-2.5 py-[9px]" dir="ltr">
+                      {fmtNumber(p.purchasePrice)}
+                    </span>
+                    <span className="px-2.5 py-[9px]" dir="ltr">
+                      {fmtNumber(p.sellPrice)}
+                    </span>
+                    <span className="px-2.5 py-[9px]" dir="ltr">
+                      {fmtNumber(p.unitPrice)}
+                    </span>
+                    <span className="px-2 py-[9px] text-center">
+                      <span
+                        dir="ltr"
+                        data-testid="qty-badge"
+                        data-tier={tier}
+                        className="inline-block min-w-[38px] rounded-full px-2 py-0.5 text-[12.5px] font-bold"
+                        style={{ color, background: `${color}1A` }}
+                      >
+                        {p.quantity}
+                      </span>
+                    </span>
+                    <span className="px-2.5 py-[9px]" dir="ltr">
+                      {fmtDate(p.createdAt)}
+                    </span>
+                    <span className="px-2.5 py-[9px]">
+                      {fmtTime(p.createdAt)}
+                    </span>
+                    <span className="flex justify-center gap-1.5 px-2.5 py-1.5">
+                      <button
+                        onClick={() => onEdit(p)}
+                        title="تعديل"
+                        className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#2563EB] hover:brightness-115"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        >
+                          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => onDelete(p)}
+                        title="حذف"
+                        className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#DC2626] hover:brightness-115"
+                      >
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
+                        </svg>
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile: one card per product instead of a squeezed 10-column row. */}
+          <div className="flex flex-col gap-2.5 md:hidden">
+            {slice.map((p, i) => {
+              const tier = qtyTier(p.quantity);
+              const color = QTY_COLORS[tier];
+              return (
+                <div
+                  key={p.id}
+                  data-testid="product-row-mobile"
+                  className={`rounded-[10px] border p-3.5 text-[13px] ${
+                    editingId === p.id
+                      ? "border-[#2563EB] bg-[#EAF1FE]"
+                      : "border-[#DCE1EB] bg-white"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <div className="text-[#8A94A8]">
+                        #{(current - 1) * perPage + i + 1}
+                      </div>
+                      <div className="truncate font-semibold">{p.name}</div>
+                      <div
+                        dir="ltr"
+                        className="mt-0.5 text-[12px] text-[#8A94A8]"
+                      >
+                        {p.barcode}
+                      </div>
+                    </div>
+                    <span
+                      dir="ltr"
+                      data-testid="qty-badge"
+                      data-tier={tier}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[12.5px] font-bold"
+                      style={{ color, background: `${color}1A` }}
+                    >
+                      {p.quantity}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#EDF0F6] pt-2.5 text-[12px]">
+                    <div>
+                      <span className="block text-[#8A94A8]">سعر الشراء</span>
+                      <b dir="ltr">{fmtNumber(p.purchasePrice)}</b>
+                    </div>
+                    <div>
+                      <span className="block text-[#8A94A8]">سعر البيع</span>
+                      <b dir="ltr">{fmtNumber(p.sellPrice)}</b>
+                    </div>
+                    <div>
+                      <span className="block text-[#8A94A8]">سعر المفرد</span>
+                      <b dir="ltr">{fmtNumber(p.unitPrice)}</b>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-[11.5px] text-[#8A94A8]">
+                    <span dir="ltr">{fmtDate(p.createdAt)}</span>
+                    <span>{fmtTime(p.createdAt)}</span>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => onEdit(p)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#2563EB] py-2 text-[12px] font-semibold text-white hover:brightness-115"
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="2"
+                      >
+                        <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                      </svg>
+                      تعديل
+                    </button>
+                    <button
+                      onClick={() => onDelete(p)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#DC2626] py-2 text-[12px] font-semibold text-white hover:brightness-115"
+                    >
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#fff"
+                        strokeWidth="2"
+                      >
+                        <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
+                      </svg>
+                      حذف
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <div className="mt-3.5 flex flex-wrap items-center justify-center gap-3 sm:gap-3.5">
         <span className="text-[12.5px] font-semibold text-[#3B4A66]">
           عرض {from} إلى {to} من {products.length} منتج
         </span>
-        <div className="mx-auto flex items-center gap-1.5">
+        <div className="mx-auto flex flex-wrap items-center justify-center gap-1.5">
           <button
             onClick={() => onPageChange(Math.min(pageCount, current + 1))}
             disabled={current >= pageCount}
-            className="cursor-pointer rounded-lg border border-[#DCE1EB] bg-white px-4 py-[7px] font-[inherit] text-[12.5px] font-semibold text-[#101C36] hover:border-[#2563EB] disabled:cursor-default disabled:bg-[#F4F7FC] disabled:text-[#8A94A8]"
+            className="cursor-pointer rounded-lg border border-[#DCE1EB] bg-white px-3 py-[7px] font-[inherit] text-[12.5px] font-semibold text-[#101C36] hover:border-[#2563EB] disabled:cursor-default disabled:bg-[#F4F7FC] disabled:text-[#8A94A8] sm:px-4"
           >
             التالي
           </button>
@@ -176,12 +287,12 @@ export default function ProductTable({
           <button
             onClick={() => onPageChange(Math.max(1, current - 1))}
             disabled={current <= 1}
-            className="cursor-pointer rounded-lg border border-[#DCE1EB] bg-white px-4 py-[7px] font-[inherit] text-[12.5px] font-semibold text-[#101C36] hover:border-[#2563EB] disabled:cursor-default disabled:bg-[#F4F7FC] disabled:text-[#8A94A8]"
+            className="cursor-pointer rounded-lg border border-[#DCE1EB] bg-white px-3 py-[7px] font-[inherit] text-[12.5px] font-semibold text-[#101C36] hover:border-[#2563EB] disabled:cursor-default disabled:bg-[#F4F7FC] disabled:text-[#8A94A8] sm:px-4"
           >
             السابق
           </button>
         </div>
-        <span className="text-[12.5px] font-semibold text-[#3B4A66]">
+        <span className="hidden text-[12.5px] font-semibold text-[#3B4A66] sm:inline">
           {from} إلى {to} من {products.length} منتج
         </span>
       </div>

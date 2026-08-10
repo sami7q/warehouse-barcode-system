@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { encode as defaultEncode } from "next-auth/jwt";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
@@ -10,17 +11,30 @@ import {
   registerFailure,
   registerSuccess,
 } from "@/lib/login-rate-limit";
+import {
+  REMEMBER_ME_MAX_AGE_SECONDS,
+  resolveSessionMaxAge,
+} from "@/lib/constants";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  session: {
+    strategy: "jwt",
+    // Ceiling used by the cookie writer; the "تذكرني" checkbox further
+    // shortens the *token's own* exp when unchecked (see jwt.encode below),
+    // so the session functionally expires sooner even if the cookie file
+    // physically persists.
+    maxAge: REMEMBER_ME_MAX_AGE_SECONDS,
+  },
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { email: {}, password: {}, remember: {} },
       async authorize(credentials) {
         const email = String(credentials?.email ?? "")
           .trim()
           .toLowerCase();
         const password = String(credentials?.password ?? "");
+        const remember = credentials?.remember === "true";
         if (!email || !password) return null;
 
         // Brute-force lockout: 5 consecutive failures → 15-minute block.
@@ -42,8 +56,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         registerSuccess(email);
-        return { id: String(user.id), email: user.email, name: "مدير النظام" };
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: "مدير النظام",
+          remember,
+        };
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.remember = user.remember ?? false;
+      }
+      return token;
+    },
+  },
+  jwt: {
+    encode: async (params) => {
+      const maxAge = resolveSessionMaxAge(Boolean(params.token?.remember));
+      return defaultEncode({ ...params, maxAge });
+    },
+  },
 });

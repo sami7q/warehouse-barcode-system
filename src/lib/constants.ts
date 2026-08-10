@@ -42,3 +42,16 @@ export function getBarcodePrefix(): string {
 
 /** Width of the numeric sequence portion of the barcode (6 → max 999,999 products). */
 export const BARCODE_SEQUENCE_WIDTH = 6;
+
+/**
+ * "تذكرني" (remember me) session length on the login form. Unchecked keeps a
+ * short session appropriate for a shared shop PC; checked keeps the owner
+ * logged in for a month. Both are enforced via the JWT's own exp claim
+ * (see src/auth.ts), not just the cookie's physical lifetime.
+ */
+export const REMEMBER_ME_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+export const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24; // 1 day
+
+export function resolveSessionMaxAge(remember: boolean): number {
+  return remember ? REMEMBER_ME_MAX_AGE_SECONDS : DEFAULT_SESSION_MAX_AGE_SECONDS;
+}

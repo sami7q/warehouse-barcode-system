@@ -11,6 +11,7 @@ export async function login(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
+      remember: formData.get("remember") === "on" ? "true" : "false",
       redirectTo: "/",
     });
   } catch (error) {

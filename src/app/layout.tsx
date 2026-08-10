@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 
@@ -10,6 +10,11 @@ const kufi = Noto_Kufi_Arabic({
 export const metadata: Metadata = {
   title: "إدارة المخازن",
   description: "نظام إدارة المخازن والباركود",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

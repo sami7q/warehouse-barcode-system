@@ -189,8 +189,8 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-[#E8EBF2] text-[#101C36]">
       <TopBar />
 
-      <div className="flex flex-1 items-stretch gap-3.5 px-[18px] py-4">
-        <div className="flex min-w-0 flex-1 flex-col rounded-[14px] border border-[#DCE1EB] bg-white px-5 py-[18px]">
+      <div className="flex flex-1 flex-col items-stretch gap-3 px-3 py-3 sm:gap-3.5 sm:px-[18px] sm:py-4 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col rounded-[14px] border border-[#DCE1EB] bg-white px-3.5 py-4 sm:px-5 sm:py-[18px]">
           <SearchBar
             search={search}
             onSearchChange={(v) => {

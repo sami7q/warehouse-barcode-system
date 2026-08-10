@@ -58,7 +58,7 @@ export default function ScanTab() {
 
   return (
     <div
-      className="flex flex-col gap-3.5 px-5 py-[18px]"
+      className="flex flex-col gap-3.5 px-4 py-[18px] sm:px-5"
       onClick={() => inputRef.current?.focus()}
     >
       <div className="text-[13px] font-bold">قارئ الباركود</div>

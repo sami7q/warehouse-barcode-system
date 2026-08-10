@@ -61,6 +61,16 @@ export default function LoginPage() {
               {error}
             </div>
           ) : null}
+          <label className="flex cursor-pointer items-center gap-2 text-[12.5px] font-semibold text-[#3B4A66]">
+            <input
+              type="checkbox"
+              name="remember"
+              data-testid="remember-me"
+              defaultChecked
+              className="h-4 w-4 accent-[#2563EB]"
+            />
+            تذكرني
+          </label>
           <button
             type="submit"
             disabled={pending}

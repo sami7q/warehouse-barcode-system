@@ -36,7 +36,7 @@ export default function MakerTab({ onUseInAdd }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-3.5 px-5 py-[18px]">
+    <div className="flex flex-col gap-3.5 px-4 py-[18px] sm:px-5">
       <div className="text-[13px] font-bold">صانع الباركود</div>
       <div className="text-[12px] text-[#8A94A8]">
         اكتب أو الصق أي نص/رقم لمعاينة الباركود وتنزيله دون حفظه كمنتج
