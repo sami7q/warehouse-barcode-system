@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { ApiProduct } from "@/lib/types";
 import { fmtNumber } from "@/lib/format";
 
@@ -16,15 +17,34 @@ export default function PrintTab({
   onToggle,
   onPrint,
 }: Props) {
+  const [search, setSearch] = useState("");
   const first = products.find((p) => selected.includes(p.id));
+
+  // Same matching rule as the main search bar / scanner lookup: exact
+  // barcode OR partial case-insensitive name.
+  const filtered = useMemo(() => {
+    const q = search.trim();
+    if (!q) return products;
+    const needle = q.toLowerCase();
+    return products.filter(
+      (p) => p.barcode === q || p.name.toLowerCase().includes(needle),
+    );
+  }, [products, search]);
 
   return (
     <div className="flex flex-col gap-3.5 px-4 py-[18px] sm:px-5">
       <div className="text-[13px] font-bold">
         اختر منتجاً لطباعة ملصق الباركود
       </div>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="ابحث باسم المنتج أو الباركود"
+        data-testid="print-search"
+        className="rounded-[9px] border border-[#DCE1EB] px-3.5 py-2.5 font-[inherit] text-[13px] outline-[#2563EB]"
+      />
       <div className="flex max-h-[300px] flex-col gap-2 overflow-y-auto">
-        {products.map((p) => {
+        {filtered.map((p) => {
           const isSel = selected.includes(p.id);
           return (
             <label
@@ -51,9 +71,12 @@ export default function PrintTab({
             </label>
           );
         })}
-        {products.length === 0 ? (
-          <div className="py-4 text-center text-[12.5px] text-[#8A94A8]">
-            لا توجد منتجات
+        {filtered.length === 0 ? (
+          <div
+            data-testid="print-no-results"
+            className="py-4 text-center text-[12.5px] text-[#8A94A8]"
+          >
+            {products.length === 0 ? "لا توجد منتجات" : "لا توجد نتائج مطابقة"}
           </div>
         ) : null}
       </div>

@@ -88,3 +88,89 @@ test.describe("طباعة باركود — print flow", () => {
     await expect(page.getByText(b.barcode)).toBeVisible();
   });
 });
+
+test.describe("طباعة باركود — search the product list", () => {
+  test("filters by partial product name", async ({ page }) => {
+    const target = await createProductViaApi(page, {
+      name: `خلطة بحث فريدة ${Date.now()}`,
+    });
+    const other = await createProductViaApi(page, { name: "منتج آخر تماماً" });
+
+    await page.goto("/");
+    await page.getByTestId("tab-print").click();
+    await expect(
+      page.getByTestId("print-item").filter({ hasText: other.barcode }),
+    ).toBeVisible();
+
+    await page.getByTestId("print-search").fill("بحث فريدة");
+    await expect(
+      page.getByTestId("print-item").filter({ hasText: target.barcode }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("print-item").filter({ hasText: other.barcode }),
+    ).toHaveCount(0);
+  });
+
+  test("filters by exact barcode", async ({ page }) => {
+    const target = await createProductViaApi(page);
+    const other = await createProductViaApi(page);
+
+    await page.goto("/");
+    await page.getByTestId("tab-print").click();
+    await page.getByTestId("print-search").fill(target.barcode);
+
+    await expect(
+      page.getByTestId("print-item").filter({ hasText: target.barcode }),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("print-item").filter({ hasText: other.barcode }),
+    ).toHaveCount(0);
+  });
+
+  test("shows a no-results message for an unmatched search, and clearing it restores the list", async ({
+    page,
+  }) => {
+    await createProductViaApi(page);
+
+    await page.goto("/");
+    await page.getByTestId("tab-print").click();
+    const initialCount = await page.getByTestId("print-item").count();
+    expect(initialCount).toBeGreaterThan(0);
+
+    await page.getByTestId("print-search").fill("نص-لا-يطابق-شيئاً-إطلاقاً");
+    await expect(page.getByTestId("print-no-results")).toHaveText(
+      "لا توجد نتائج مطابقة",
+    );
+    await expect(page.getByTestId("print-item")).toHaveCount(0);
+
+    await page.getByTestId("print-search").fill("");
+    await expect(page.getByTestId("print-item")).toHaveCount(initialCount);
+  });
+
+  test("selecting a product found via search still previews and can be printed", async ({
+    page,
+    context,
+  }) => {
+    const product = await createProductViaApi(page, {
+      name: `منتج للطباعة ${Date.now()}`,
+      sell_price: 40000,
+    });
+
+    await page.goto("/");
+    await page.getByTestId("tab-print").click();
+    await page.getByTestId("print-search").fill(product.barcode);
+    await page
+      .getByTestId("print-item")
+      .filter({ hasText: product.barcode })
+      .getByRole("checkbox")
+      .check();
+    await expect(page.getByTestId("print-preview")).toContainText(
+      product.name,
+    );
+
+    const popupPromise = context.waitForEvent("page");
+    await page.getByTestId("print-btn").click();
+    const popup = await popupPromise;
+    await expect(popup.getByTestId("print-label")).toBeVisible();
+  });
+});
