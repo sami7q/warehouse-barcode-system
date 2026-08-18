@@ -9,6 +9,11 @@ type ScanState =
   | { status: "found"; product: ApiProduct }
   | { status: "miss" };
 
+/** Full EAN-13 length — once the field reaches this many digits, look up
+ * automatically without waiting for Enter (see AUTO_LOOKUP_DEBOUNCE_MS). */
+const BARCODE_LENGTH = 13;
+const AUTO_LOOKUP_DEBOUNCE_MS = 200;
+
 export default function ScanTab() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
@@ -18,8 +23,13 @@ export default function ScanTab() {
   // and superseded in-flight requests are aborted outright.
   const scanSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Stay focused at all times: on mount, on blur, on any click in the tab.
+  // (On iOS Safari this doesn't reliably pop the on-screen keyboard, since
+  // it isn't called synchronously inside a user gesture — that's fine, it
+  // still readies the field for a physical/Bluetooth scanner, and a tap
+  // brings the keyboard up same as any other input.)
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -29,6 +39,10 @@ export default function ScanTab() {
   };
 
   const lookup = async (barcode: string) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     if (!barcode) return;
     const seq = ++scanSeq.current;
     abortRef.current?.abort();
@@ -56,6 +70,24 @@ export default function ScanTab() {
     }
   };
 
+  const handleChange = (next: string) => {
+    setValue(next);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    // Fallback trigger for input paths that never fire a clean Enter
+    // keydown: mobile virtual keyboards during IME composition (a known
+    // Android/Chrome quirk), and phone camera/Bluetooth "scanner" apps that
+    // inject text without a real Enter keystroke. Debounced so it never
+    // races an explicit Enter/تم submit, which always wins first and clears
+    // the field (see the guard at the top of lookup()).
+    const trimmed = next.trim();
+    if (trimmed.length === BARCODE_LENGTH && /^\d+$/.test(trimmed)) {
+      debounceRef.current = setTimeout(() => lookup(trimmed), AUTO_LOOKUP_DEBOUNCE_MS);
+    }
+  };
+
   return (
     <div
       className="flex flex-col gap-3.5 px-4 py-[18px] sm:px-5"
@@ -63,21 +95,38 @@ export default function ScanTab() {
     >
       <div className="text-[13px] font-bold">قارئ الباركود</div>
       <div className="text-[12px] text-[#8A94A8]">
-        امسح الباركود بالقارئ أو اكتبه ثم اضغط Enter للبحث الفوري
+        امسح الباركود بالقارئ، أو اكتبه وسيبحث تلقائياً عند اكتمال الرقم، أو
+        اضغط بحث
       </div>
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") lookup(value.trim());
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          lookup(value.trim());
         }}
-        onBlur={refocus}
-        placeholder="6281101000012"
-        dir="ltr"
-        data-testid="scan-input"
-        className="rounded-[10px] border-2 border-[#2563EB] px-3.5 py-[13px] text-center font-[inherit] text-[15px] tracking-[2px] outline-none"
-      />
+      >
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={refocus}
+          placeholder="6281101000012"
+          dir="ltr"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          enterKeyHint="search"
+          autoComplete="off"
+          data-testid="scan-input"
+          className="w-full min-w-0 flex-1 rounded-[10px] border-2 border-[#2563EB] px-3.5 py-[13px] text-center font-[inherit] text-[15px] tracking-[2px] outline-none"
+        />
+        <button
+          type="submit"
+          data-testid="scan-search-btn"
+          className="shrink-0 cursor-pointer rounded-[10px] border-none bg-[#2563EB] px-4 font-[inherit] text-[13px] font-bold text-white hover:brightness-108"
+        >
+          بحث
+        </button>
+      </form>
 
       {scan.status === "found" ? (
         <div

@@ -600,3 +600,87 @@ home page overflow (mobile): { scrollW: 390, clientW: 390 }    ← no overflow
 scan tab reachable on mobile: true
 session cookie issued: true
 ```
+
+---
+
+## Scanner Fix — قارئ الباركود on Mobile
+
+Reported: the barcode-reader tab "doesn't work on the phone." Investigated
+root cause rather than guessing at a patch — the desktop implementation
+relied entirely on a raw `onKeyDown` listener checking `e.key === "Enter"`,
+with no other way to trigger a lookup. That design has three concrete,
+well-documented mobile failure modes, all of which plausibly explain "does
+nothing":
+
+1. **Android IME composition swallows Enter.** Many Android on-screen
+   keyboards (Gboard, Samsung Keyboard) don't reliably fire a clean
+   `key === "Enter"` keydown when the keyboard's own Go/Search/Done action
+   button is tapped — during IME composition the browser can see
+   `key: "Unidentified"` or nothing at all reaches a plain `onKeyDown`
+   listener. Since there was no other trigger, typing a barcode by hand on
+   an Android phone could look completely dead.
+2. **No numeric keypad.** The field showed a full QWERTY keyboard for a
+   13-digit numeric barcode — slow and error-prone to type correctly.
+3. **iOS Safari's focus-outside-a-gesture quirk.** The auto-focus-on-tab-
+   mount ran inside a `useEffect`, not synchronously inside the tap that
+   switched to the tab — Safari allows the DOM focus but not the on-screen
+   keyboard popup in that case, so the field looked focused but nothing
+   appeared to type into without an extra manual tap.
+
+### What changed (`src/components/tabs/ScanTab.tsx`)
+
+- The input now sits in a `<form>` with `onSubmit`, so **any** commit
+  gesture — a real Enter keystroke, a mobile keyboard's action key, or the
+  browser's own implicit single-field-form submission — reaches the same
+  handler, sidestepping the raw-keydown IME issue entirely.
+- Added a visible **"بحث" (search) button** next to the field — an explicit,
+  always-reliable path that works regardless of any keyboard/IME quirk on
+  any device.
+- Added `inputMode="numeric"` + `pattern="[0-9]*"` + `enterKeyHint="search"`
+  so phones show a numeric keypad instead of a full keyboard.
+- Added a **debounced auto-lookup**: the moment the field holds exactly 13
+  numeric digits (a complete EAN-13), it looks the product up on its own
+  after a 200ms pause — no Enter, no button tap required at all. This
+  specifically covers scanner/companion apps that inject text via paste or
+  an accessibility service without ever sending a real Enter keystroke, and
+  is generous enough (200ms) to never race a real trailing Enter, which
+  arrives in low single-digit milliseconds after typing on both real
+  hardware and in the automated tests.
+- Desktop behavior (auto-focus, refocus-on-blur, refocus-on-any-tab-click —
+  required by `plan.md` §8 for the always-focused hardware-scanner UX) is
+  unchanged.
+
+### Verification
+
+**125 tests, 100% pass: 67 unit/integration + 58 e2e.** New coverage in
+`e2e/scan-mobile.spec.ts` runs under **real mobile device emulation**
+(iPhone 13 and Pixel 7 profiles — touch taps via `.tap()`, mobile viewport
+and UA, not just a resized desktop browser) and specifically exercises the
+failure modes above:
+
+- Tap to focus → type → tap the بحث button, with **no Enter pressed at
+  all** — finds the product.
+- Type a complete 13-digit barcode and do **nothing else** — auto-lookup
+  fires and finds the product (the exact "Enter never arrives" case).
+- An unknown barcode via the بحث button shows the not-found state.
+- The field carries `inputmode="numeric"` and `pattern="[0-9]*"`.
+- An 11-digit (incomplete) string does *not* auto-fire.
+- A real physical Enter keystroke still works (Bluetooth/USB scanners).
+- No horizontal overflow on the scan tab at a real mobile viewport.
+- All pre-existing scanner tests (desktop keydown-Enter simulation,
+  rapid-scan sequencing, mid-scan abort guards) still pass unmodified.
+
+### Verified live on production, against a real catalog item
+
+Ran the same real-device-emulation smoke check directly against
+https://warehouse-barcode-system.vercel.app using an actual product from
+the live catalog ("جيلاتين نجمة العدد 12"):
+
+```
+inputmode attr: numeric
+pattern attr: [0-9]*
+enterkeyhint attr: search
+PASS: tap+fill+بحث button found: جيلاتين نجمة العدد 12
+PASS: auto-lookup with no Enter/button found: جيلاتين نجمة العدد 12
+overflow check: { scrollWidth: 390, clientWidth: 390 } OK
+```
