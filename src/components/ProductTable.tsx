@@ -4,8 +4,10 @@ import type { ApiProduct } from "@/lib/types";
 import { fmtDate, fmtNumber, fmtTime } from "@/lib/format";
 import { QTY_COLORS, qtyTier } from "@/lib/constants";
 
-const GRID =
+const GRID_EDITABLE =
   "grid-cols-[36px_1.4fr_1.5fr_1fr_1fr_1fr_.8fr_1.15fr_.95fr_.95fr]";
+const GRID_READONLY =
+  "grid-cols-[36px_1.4fr_1.5fr_1fr_1fr_1fr_.8fr_1.15fr_.95fr]";
 
 type Props = {
   products: ApiProduct[];
@@ -13,8 +15,10 @@ type Props = {
   perPage: number;
   editingId: number | null;
   onPageChange: (page: number) => void;
-  onEdit: (product: ApiProduct) => void;
-  onDelete: (product: ApiProduct) => void;
+  onEdit?: (product: ApiProduct) => void;
+  onDelete?: (product: ApiProduct) => void;
+  /** Employee view: full data, zero mutation controls. */
+  readOnly?: boolean;
 };
 
 export default function ProductTable({
@@ -25,7 +29,9 @@ export default function ProductTable({
   onPageChange,
   onEdit,
   onDelete,
+  readOnly = false,
 }: Props) {
+  const GRID = readOnly ? GRID_READONLY : GRID_EDITABLE;
   const pageCount = Math.max(1, Math.ceil(products.length / perPage));
   const current = Math.min(page, pageCount);
   const slice = products.slice((current - 1) * perPage, current * perPage);
@@ -64,7 +70,9 @@ export default function ProductTable({
                 <span className="px-2 py-[11px] text-center">الكمية</span>
                 <span className="px-2.5 py-[11px]">تاريخ الإدخال</span>
                 <span className="px-2.5 py-[11px]">ساعة الإدخال</span>
-                <span className="px-2.5 py-[11px] text-center">إجراءات</span>
+                {readOnly ? null : (
+                  <span className="px-2.5 py-[11px] text-center">إجراءات</span>
+                )}
               </div>
 
               {slice.map((p, i) => {
@@ -113,40 +121,42 @@ export default function ProductTable({
                     <span className="px-2.5 py-[9px]">
                       {fmtTime(p.createdAt)}
                     </span>
-                    <span className="flex justify-center gap-1.5 px-2.5 py-1.5">
-                      <button
-                        onClick={() => onEdit(p)}
-                        title="تعديل"
-                        className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#2563EB] hover:brightness-115"
-                      >
-                        <svg
-                          width="13"
-                          height="13"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#fff"
-                          strokeWidth="2"
+                    {readOnly ? null : (
+                      <span className="flex justify-center gap-1.5 px-2.5 py-1.5">
+                        <button
+                          onClick={() => onEdit?.(p)}
+                          title="تعديل"
+                          className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#2563EB] hover:brightness-115"
                         >
-                          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => onDelete(p)}
-                        title="حذف"
-                        className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#DC2626] hover:brightness-115"
-                      >
-                        <svg
-                          width="13"
-                          height="13"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#fff"
-                          strokeWidth="2"
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#fff"
+                            strokeWidth="2"
+                          >
+                            <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => onDelete?.(p)}
+                          title="حذف"
+                          className="grid h-[30px] w-[30px] cursor-pointer place-items-center rounded-[7px] border-none bg-[#DC2626] hover:brightness-115"
                         >
-                          <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
-                        </svg>
-                      </button>
-                    </span>
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#fff"
+                            strokeWidth="2"
+                          >
+                            <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -212,40 +222,42 @@ export default function ProductTable({
                     <span>{fmtTime(p.createdAt)}</span>
                   </div>
 
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => onEdit(p)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#2563EB] py-2 text-[12px] font-semibold text-white hover:brightness-115"
-                    >
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="2"
+                  {readOnly ? null : (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => onEdit?.(p)}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#2563EB] py-2 text-[12px] font-semibold text-white hover:brightness-115"
                       >
-                        <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
-                      </svg>
-                      تعديل
-                    </button>
-                    <button
-                      onClick={() => onDelete(p)}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#DC2626] py-2 text-[12px] font-semibold text-white hover:brightness-115"
-                    >
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="2"
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        >
+                          <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+                        </svg>
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => onDelete?.(p)}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-[7px] border-none bg-[#DC2626] py-2 text-[12px] font-semibold text-white hover:brightness-115"
                       >
-                        <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
-                      </svg>
-                      حذف
-                    </button>
-                  </div>
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        >
+                          <path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14M10 11v6M14 11v6" />
+                        </svg>
+                        حذف
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

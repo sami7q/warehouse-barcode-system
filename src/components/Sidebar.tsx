@@ -1,8 +1,8 @@
 "use client";
 
-export type TabKey = "add" | "print" | "scan" | "make";
+export type TabKey = "add" | "print" | "scan" | "make" | "employees";
 
-const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+const BASE_TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   {
     key: "add",
     label: "إضافة منتج",
@@ -44,16 +44,41 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+const EMPLOYEES_TAB: { key: TabKey; label: string; icon: React.ReactNode } = {
+  key: "employees",
+  label: "الموظفون",
+  icon: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.9">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6" />
+      <circle cx="18" cy="8.5" r="2.7" />
+      <path d="M16.5 14.3c2.7.5 4.5 2.6 4.5 5.7" />
+    </svg>
+  ),
+};
+
 type Props = {
   tab: TabKey;
   onTabChange: (tab: TabKey) => void;
+  /** Admin-only: appends the "الموظفون" tab for managing employee logins. */
+  showEmployeesTab?: boolean;
   children: React.ReactNode;
 };
 
-export default function Sidebar({ tab, onTabChange, children }: Props) {
+export default function Sidebar({
+  tab,
+  onTabChange,
+  showEmployeesTab = false,
+  children,
+}: Props) {
+  const TABS = showEmployeesTab ? [...BASE_TABS, EMPLOYEES_TAB] : BASE_TABS;
+
   return (
     <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-[14px] border border-[#DCE1EB] bg-white lg:w-[360px]">
-      <div className="grid grid-cols-4 border-b border-[#DCE1EB]">
+      <div
+        className="grid border-b border-[#DCE1EB]"
+        style={{ gridTemplateColumns: `repeat(${TABS.length}, 1fr)` }}
+      >
         {TABS.map((t) => {
           const active = t.key === tab;
           return (

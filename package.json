@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "bcryptjs": "^3.0.3",
     "bwip-js": "^4.11.2",
     "drizzle-orm": "^0.45.2",

@@ -1,4 +1,8 @@
-export default function BottomBar() {
+export default function BottomBar({
+  userLabel = "مدير النظام",
+}: {
+  userLabel?: string;
+}) {
   return (
     <div className="flex min-h-[40px] flex-wrap items-center gap-2 bg-[#101C36] px-3 py-1.5 text-[11.5px] text-[#B9C4D8] sm:h-[44px] sm:px-[22px] sm:py-0 sm:text-[12.5px]">
       <svg
@@ -13,7 +17,7 @@ export default function BottomBar() {
         <circle cx="12" cy="8" r="4" />
         <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
       </svg>
-      المستخدم: مدير النظام
+      المستخدم: {userLabel}
       <span className="hidden items-center gap-[7px] sm:mx-auto sm:flex">
         <svg
           width="14"

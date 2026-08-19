@@ -49,3 +49,23 @@ export async function createProductViaApi(
   };
   return data.product;
 }
+
+/**
+ * Create an employee (read-only) login through the authenticated admin
+ * API. Caller must be running with an admin-authenticated context.
+ */
+export async function createEmployeeViaApi(page: Page) {
+  counter += 1;
+  const email = `employee-${Date.now()}-${counter}@e2e.local`;
+  const password = "Employee@Password1";
+  const res = await page.request.post("/api/users", {
+    data: { email, password },
+  });
+  if (!res.ok()) {
+    throw new Error(`createEmployeeViaApi failed: ${res.status()}`);
+  }
+  const data = (await res.json()) as {
+    user: { id: number; email: string; role: string };
+  };
+  return { ...data.user, password };
+}

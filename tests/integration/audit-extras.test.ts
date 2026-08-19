@@ -6,7 +6,9 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import ExcelJS from "exceljs";
 
 const authState = vi.hoisted(() => ({
-  session: { user: { id: "1", email: "admin@test.local" } } as unknown,
+  session: {
+    user: { id: "1", email: "admin@test.local", role: "admin" },
+  } as unknown,
 }));
 
 vi.mock("@/auth", () => ({
@@ -57,7 +59,9 @@ afterAll(() => {
 });
 
 beforeEach(async () => {
-  authState.session = { user: { id: "1", email: "admin@test.local" } };
+  authState.session = {
+    user: { id: "1", email: "admin@test.local", role: "admin" },
+  };
   await getDb().delete(products);
 });
 

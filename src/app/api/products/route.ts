@@ -69,6 +69,12 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
+  if (session.user.role !== "admin") {
+    return NextResponse.json(
+      { error: "هذا الإجراء متاح للمدير فقط" },
+      { status: 403 },
+    );
+  }
 
   let body: unknown;
   try {

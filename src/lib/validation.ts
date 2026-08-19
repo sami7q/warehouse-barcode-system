@@ -53,3 +53,14 @@ export const loginSchema = z.object({
   email: z.email("أدخل بريداً إلكترونياً صحيحاً"),
   password: z.string().min(1, "أدخل كلمة المرور"),
 });
+
+/** POST /api/users body (admin-only: creates a read-only employee login). */
+export const employeeCreateSchema = z.object({
+  email: z.email("أدخل بريداً إلكترونياً صحيحاً").trim().toLowerCase(),
+  password: z
+    .string()
+    .min(8, "كلمة المرور يجب ألا تقل عن 8 أحرف")
+    .max(200, "كلمة المرور طويلة جداً"),
+});
+
+export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;

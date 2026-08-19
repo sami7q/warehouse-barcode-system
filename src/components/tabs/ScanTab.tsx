@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiProduct } from "@/lib/types";
 import { fmtNumber } from "@/lib/format";
+import CameraScan from "@/components/CameraScan";
 
 type ScanState =
   | { status: "idle" }
@@ -38,7 +39,11 @@ export default function ScanTab() {
     setTimeout(() => inputRef.current?.focus(), 30);
   };
 
-  const lookup = async (barcode: string) => {
+  // useCallback with no deps: every closure here is a ref or a setState
+  // function (both stable across renders), so this identity never changes —
+  // important since it's passed to CameraScan as onDetect, and a fresh
+  // function reference there would restart the camera stream mid-scan.
+  const lookup = useCallback(async (barcode: string) => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
@@ -68,7 +73,7 @@ export default function ScanTab() {
       if (seq !== scanSeq.current) return;
       setScan({ status: "miss" });
     }
-  };
+  }, []);
 
   const handleChange = (next: string) => {
     setValue(next);
@@ -96,7 +101,7 @@ export default function ScanTab() {
       <div className="text-[13px] font-bold">قارئ الباركود</div>
       <div className="text-[12px] text-[#8A94A8]">
         امسح الباركود بالقارئ، أو اكتبه وسيبحث تلقائياً عند اكتمال الرقم، أو
-        اضغط بحث
+        اضغط بحث، أو استخدم كاميرا الهاتف
       </div>
       <form
         className="flex gap-2"
@@ -126,6 +131,7 @@ export default function ScanTab() {
         >
           بحث
         </button>
+        <CameraScan onDetect={lookup} />
       </form>
 
       {scan.status === "found" ? (

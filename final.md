@@ -684,3 +684,135 @@ PASS: tap+fill+بحث button found: جيلاتين نجمة العدد 12
 PASS: auto-lookup with no Enter/button found: جيلاتين نجمة العدد 12
 overflow check: { scrollWidth: 390, clientWidth: 390 } OK
 ```
+
+---
+
+## Employee (Read-Only) Role & Camera Barcode Scanning
+
+Two additions, requested directly by the business owner: a second login
+role for shop workers — view-only, zero editing — and camera-based barcode
+scanning (phone camera instead of a physical scanner) on both dashboards.
+
+### Employee role
+
+- `users.role` (already existed in the schema as `"admin" | "employee"`) is
+  now actually read and enforced end-to-end: carried through the JWT
+  (`authorize` → `jwt` → `session` callbacks) and typed via
+  `src/types/next-auth.d.ts` so `session.user.role` is available everywhere,
+  server and client.
+- **Server-side enforcement is the real boundary, not the UI.** Every
+  mutating route — `POST/PUT/DELETE /api/products*`, `GET
+  /api/products/export`, and the new `/api/users*` routes — rejects a
+  non-admin session with 403, independent of whatever the UI shows. Hiding
+  a button is not access control; a technically-savvy employee opening dev
+  tools and calling the API directly gets refused at the server regardless.
+- **Admin gets a new "الموظفون" tab** (`src/components/tabs/EmployeesTab.tsx`)
+  to create and delete employee logins — email + password, always
+  hardcoded to `role: "employee"` server-side (an admin account can never be
+  created or deleted through this UI/endpoint, only via the one-time seed
+  script — closes off any accidental privilege-escalation surface).
+- **Employee session renders a deliberately reduced UI**
+  (`src/components/EmployeePanel.tsx` instead of `Sidebar`): the full
+  product table with every column and correct quantity badges, search, and
+  the قارئ باركود panel — and *only* that. No إضافة منتج / طباعة باركود /
+  صانع باركود tabs, no ✎/🗑 row actions (`ProductTable`'s new `readOnly`
+  prop drops the entire "إجراءات" column, desktop grid and mobile cards
+  alike), and — a deliberate, easily-reversible judgment call — no "تصدير
+  إلى Excel" either, since extracting the full price list is a step beyond
+  passive viewing; flip one boolean in `HomeClient.tsx` if the owner wants
+  it back. The bottom bar correctly labels the session "موظف" instead of
+  "مدير النظام".
+- `src/app/page.tsx` is now a **Server Component** that reads `auth()` once
+  and passes `role` into `HomeClient` (moved from the old `page.tsx`) —
+  the standard Next.js App Router pattern for gating a client-heavy page by
+  session data without pulling in `useSession`/`SessionProvider`.
+
+### Camera barcode scanning (both dashboards)
+
+- `src/components/CameraScan.tsx`, built on `@zxing/browser` +
+  `@zxing/library` (pinned to matching peer-dependency versions) — chosen
+  over the native `BarcodeDetector` API specifically because that API isn't
+  available on Safari/iOS; ZXing decodes entirely in JS/WASM so it works
+  identically everywhere.
+- One button ("مسح بالكاميرا") opens a full-screen live camera view
+  (back camera via `facingMode: "environment"`), decodes continuously, and
+  the instant a barcode is read it closes itself and feeds the code into
+  the *exact same* `lookup()` used by keyboard/HID scanning — same result
+  card, same not-found state, same abort/sequencing guards from the earlier
+  mobile-scanner fix.
+- Handles camera permission denial and "no camera found" with clear Arabic
+  error states rather than a silent failure; always releases the media
+  stream (on successful scan, on cancel, or on unmount) so the camera
+  indicator never gets left on.
+- Built once inside the shared `ScanTab` component, which both the admin
+  sidebar and the employee panel render — "add it to both dashboards" was
+  satisfied structurally, not by duplicating the component.
+
+### Verification — genuinely decodes a real barcode, not just UI wiring
+
+There's no way to point a real camera at a real product label inside CI.
+Rather than settling for "the button exists and opens a modal," the test
+suite builds the strongest available substitute: the browser's own
+`canvas.captureStream()` turns a canvas — with a **real barcode image
+rendered by the app's own `/api/barcode` endpoint** drawn onto it — into a
+`MediaStream`, returned in place of a real camera via a `getUserMedia`
+override. Nothing about the decode itself is mocked: the app's actual
+bundled `@zxing/browser` code reads real video frames and must genuinely
+decode the barcode for the test to pass. Result: `e2e/camera-scan.spec.ts`
+proves the full pipeline — permission → live stream → real ZXing decode →
+`onDetect` → `lookup()` → product card — works end to end, plus permission-
+denied / no-camera error states, that cancel always releases the camera
+stream (spied via a wrapped `track.stop()`), and that the modal is a true
+blocking overlay (no other tab reachable until it's closed or cancelled).
+
+`e2e/roles.spec.ts` covers the employee role separately: the full
+create/list/delete flow through the real admin UI, validation (short
+password, duplicate email), a fresh employee login seeing the exact
+read-only view described above (asserted by testid absence, not just
+visual), search and the keyboard scanner still working, no horizontal
+overflow on mobile, and — the important one — every mutating endpoint
+independently confirmed to return 403 for an authenticated employee
+session while the product itself is proven untouched afterward.
+`tests/integration/users-api.test.ts` covers `/api/users*` at the unit/
+integration level: employee creation never leaks `password_hash`, an admin
+row can never be deleted through the endpoint (checked even by guessing an
+admin's id directly), duplicate-email → 409, and role-gating on every
+mutating product route.
+
+**152 tests, 100% pass: 80 unit/integration + 72 e2e.** `next build` clean.
+
+### Verified live on production, through the real feature (not a shortcut)
+
+An employee account was created **through the actual admin "الموظفون" tab
+UI** on the live site, logged into fresh, exercised, and then deleted again
+through the same UI — production was left exactly as it started:
+
+```
+PASS: admin created employee via real UI: smoke-employee-…@e2e.local
+PASS: camera button visible for admin: true
+PASS: employee logged in successfully
+employee view — tab-add present (should be 0): 0
+employee view — export-btn present (should be 0): 0
+employee view — edit buttons present (should be 0): 0
+employee view — camera button visible: true
+employee view — bottom bar shows موظف: true
+POST /api/products as employee → status (expect 403): 403
+GET /api/products/export as employee → status (expect 403): 403
+GET /api/users as employee → status (expect 403): 403
+GET /api/products as employee → status (expect 200): 200
+PASS: cleaned up smoke-test employee account
+```
+
+### Judgment calls made while implementing (flagged for the owner to revisit)
+
+- Excel export is hidden from the employee role by default (see above) —
+  trivial to re-enable if wanted.
+- Printing labels (`/print/[id]`, `/print?ids=`) was left reachable by
+  direct URL for any authenticated session, admin or employee — it's
+  non-mutating (renders a barcode + price, nothing is written), so it
+  wasn't restricted; there's simply no UI entry point to it for employees
+  since the طباعة باركود tab isn't part of their panel.
+- Employee accounts are created with an admin-chosen password typed
+  directly into the admin's own browser — never seen by, or transmitted
+  through, anything outside that request, consistent with how credentials
+  have been handled throughout this project.

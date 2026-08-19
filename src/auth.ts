@@ -56,11 +56,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         registerSuccess(email);
+        const role = user.role === "employee" ? "employee" : "admin";
         return {
           id: String(user.id),
           email: user.email,
-          name: "مدير النظام",
+          name: role === "admin" ? "مدير النظام" : "موظف",
           remember,
+          role,
         };
       },
     }),
@@ -69,8 +71,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.remember = user.remember ?? false;
+        token.role = user.role ?? "admin";
       }
       return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.role = token.role ?? "admin";
+      }
+      return session;
     },
   },
   jwt: {

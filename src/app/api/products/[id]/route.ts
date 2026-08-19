@@ -21,6 +21,12 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   if (!session?.user) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
+  if (session.user.role !== "admin") {
+    return NextResponse.json(
+      { error: "هذا الإجراء متاح للمدير فقط" },
+      { status: 403 },
+    );
+  }
 
   const { id: rawId } = await ctx.params;
   const id = parseId(rawId);
@@ -85,6 +91,12 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  }
+  if (session.user.role !== "admin") {
+    return NextResponse.json(
+      { error: "هذا الإجراء متاح للمدير فقط" },
+      { status: 403 },
+    );
   }
 
   const { id: rawId } = await ctx.params;
