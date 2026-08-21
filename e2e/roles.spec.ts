@@ -137,6 +137,47 @@ test.describe("employee session — read-only view", () => {
     await expect(page.getByTestId("scan-name")).toHaveText(product.name);
   });
 
+  test("clicking the main search bar is not hijacked back to قارئ الباركود", async ({
+    page,
+    browser,
+  }) => {
+    // Regression: the scan field auto-focuses on mount and used to steal
+    // focus back unconditionally on ANY blur — including when the employee
+    // deliberately clicked the main search bar, which sits right next to
+    // the always-mounted scan panel on this view (no tab to switch away
+    // from it, unlike the admin sidebar).
+    const adminCtx = await browser.newContext({
+      storageState: "e2e/.auth/state.json",
+    });
+    const adminPage = await adminCtx.newPage();
+    const product = await createProductViaApi(adminPage, {
+      name: "بحث بدون تحويل " + Date.now(),
+    });
+    await loginAsFreshEmployee(page, adminPage);
+    await adminCtx.close();
+
+    // The scan input auto-focuses itself on page load — confirm that,
+    // then click into the main search bar instead.
+    await expect(page.getByTestId("scan-input")).toBeFocused();
+    const searchInput = page.getByTestId("search-input");
+    await searchInput.click();
+    await expect(searchInput).toBeFocused();
+
+    await page.keyboard.type(product.name, { delay: 15 });
+
+    // Focus must still be on the search bar, not yanked back to the scanner.
+    await expect(searchInput).toBeFocused();
+    await expect(searchInput).toHaveValue(product.name);
+    // And typing there must not have landed in / triggered the scanner.
+    await expect(page.getByTestId("scan-input")).toHaveValue("");
+    await expect(page.getByTestId("scan-result")).toHaveCount(0);
+    await expect(page.getByTestId("scan-miss")).toHaveCount(0);
+
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: product.name }),
+    ).toBeVisible();
+  });
+
   test("server-side: every mutating product/user endpoint returns 403 for the employee session", async ({
     page,
     browser,

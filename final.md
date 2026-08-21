@@ -816,3 +816,47 @@ PASS: cleaned up smoke-test employee account
   directly into the admin's own browser — never seen by, or transmitted
   through, anything outside that request, consistent with how credentials
   have been handled throughout this project.
+
+---
+
+## Fix: Employee Search Bar Hijacked by the Barcode Scanner Field
+
+Reported: on the employee dashboard, clicking the main search bar and
+typing would jump back to قارئ الباركود instead.
+
+**Root cause:** the scan field's `onBlur` handler unconditionally refocused
+itself the instant it lost focus, for *any* reason — a deliberate design
+requirement from the original build (`plan.md` §8: a physical/Bluetooth
+scanner needs the field always ready, so it "stays focused at all times").
+That was safe on the admin dashboard, where قارئ الباركود lives behind its
+own sidebar tab — you only see it mounted while deliberately viewing that
+tab. The employee dashboard has no tabs: the scan panel is permanently
+mounted right next to the main search bar. The moment an employee clicked
+into search, the scan field's blur handler fired and yanked focus straight
+back within 30ms, before they could type.
+
+**Fix** (`src/components/tabs/ScanTab.tsx`): the blur handler now checks
+`event.relatedTarget` — the element actually receiving focus. If it's
+`null` (focus was lost to "nowhere," e.g. an on-screen keyboard closing),
+it still reclaims focus as before. If it's a real element the user
+deliberately clicked — the search bar, or anything else — it backs off.
+The explicit refocus that already runs right after every completed scan
+(inside `lookup()`, so the field is instantly ready for the next scan) is
+untouched, since that's a direct call, not this blur check.
+
+**Regression test, verified red-then-green:** ran the new
+`e2e/roles.spec.ts` case against the pre-fix code first — it failed with
+exactly the reported symptom (`search-input` goes `inactive` mid-typing) —
+then confirmed it passes with the fix, alongside all 9 other role tests.
+
+**153 tests, 100% pass: 80 unit/integration + 73 e2e.** `next build` clean.
+
+**Verified live on production** as a real freshly-created employee account
+(created and cleaned up through the actual admin UI):
+
+```
+scan input focused on load: true
+search bar still focused after typing: true
+search bar value: لوز
+cleaned up smoke-test employee account
+```

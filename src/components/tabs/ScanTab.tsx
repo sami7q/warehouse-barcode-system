@@ -39,6 +39,16 @@ export default function ScanTab() {
     setTimeout(() => inputRef.current?.focus(), 30);
   };
 
+  // Only reclaim focus when it was lost to "nowhere" (e.g. an on-screen
+  // keyboard closing) — not when the user deliberately focused a different
+  // real control, such as the main search bar that sits right next to this
+  // panel on the employee view. relatedTarget is the element gaining focus;
+  // it's null exactly in the "lost to nowhere" case.
+  const onFieldBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (e.relatedTarget) return;
+    refocus();
+  };
+
   // useCallback with no deps: every closure here is a ref or a setState
   // function (both stable across renders), so this identity never changes —
   // important since it's passed to CameraScan as onDetect, and a fresh
@@ -114,7 +124,7 @@ export default function ScanTab() {
           ref={inputRef}
           value={value}
           onChange={(e) => handleChange(e.target.value)}
-          onBlur={refocus}
+          onBlur={onFieldBlur}
           placeholder="6281101000012"
           dir="ltr"
           inputMode="numeric"
