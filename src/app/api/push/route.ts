@@ -4,12 +4,15 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { pushSubscriptions } from "@/db/schema";
-import { getVapidPublicKey } from "@/lib/push";
+import { getVapidPublicKey, isAllowedPushEndpoint } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
 const subscriptionSchema = z.object({
-  endpoint: z.url().max(2048),
+  endpoint: z
+    .string()
+    .max(2048)
+    .refine(isAllowedPushEndpoint, "خدمة إشعارات غير معروفة"),
   keys: z.object({
     p256dh: z.string().min(1).max(512),
     auth: z.string().min(1).max(512),

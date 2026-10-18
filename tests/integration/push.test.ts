@@ -89,7 +89,7 @@ function makeDevice(name: string) {
     ecdh,
     auth,
     subscription: {
-      endpoint: `https://push.example.test/${name}-${crypto.randomUUID()}`,
+      endpoint: `https://fcm.googleapis.com/fcm/send/${name}-${crypto.randomUUID()}`,
       keys: { p256dh: ecdh.getPublicKey().toString("base64url"), auth },
     },
   };
@@ -207,6 +207,51 @@ describe("web push for new products", () => {
       req("/api/push", "POST", { endpoint: "not a url", keys: {} }),
     );
     expect(res.status).toBe(400);
+  });
+
+  it("only accepts endpoints on real push-service hosts (no SSRF)", async () => {
+    asEmployee(employeeA);
+    const keys = makeDevice("x").subscription.keys;
+    for (const endpoint of [
+      "http://fcm.googleapis.com/fcm/send/x", // not https
+      "https://169.254.169.254/latest/meta-data", // cloud metadata
+      "https://localhost/internal",
+      "https://127.0.0.1:3000/api/users",
+      "https://fcm.googleapis.com:8443/fcm/send/x", // odd port
+      "https://evil.example.com/fcm.googleapis.com",
+      "https://fcm.googleapis.com.evil.example/x", // suffix trick
+      "https://notgoogle.com/x",
+      "https://user:pw@fcm.googleapis.com/x",
+    ]) {
+      const res = await PUSH_POST(req("/api/push", "POST", { endpoint, keys }));
+      expect(res.status, endpoint).toBe(400);
+    }
+    expect(await getDb().select().from(pushSubscriptions)).toHaveLength(0);
+
+    for (const endpoint of [
+      "https://fcm.googleapis.com/fcm/send/abc",
+      "https://jmt17.google.com/fcm/send/abc",
+      "https://updates.push.services.mozilla.com/wpush/v2/abc",
+      "https://web.push.apple.com/abc",
+      "https://wns2-par02p.notify.windows.com/w/?token=abc",
+    ]) {
+      const res = await PUSH_POST(req("/api/push", "POST", { endpoint, keys }));
+      expect(res.status, endpoint).toBe(201);
+    }
+  });
+
+  it("never sends to a non-allowlisted endpoint already in the table", async () => {
+    const device = makeDevice("planted");
+    await getDb().insert(pushSubscriptions).values({
+      userId: employeeA,
+      endpoint: "https://169.254.169.254/latest/meta-data",
+      p256dh: device.subscription.keys.p256dh,
+      auth: device.subscription.keys.auth,
+      createdAt: Date.now(),
+    });
+    await createProduct("محاولة SSRF");
+    expect(pushService.delivered).toHaveLength(0);
+    expect(await getDb().select().from(pushSubscriptions)).toHaveLength(0);
   });
 
   it("delivers an encrypted, decryptable notification to every employee device", async () => {

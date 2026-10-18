@@ -15,6 +15,36 @@ import { fmtNumber } from "@/lib/format";
  * Without them push is simply off and everything else keeps working.
  */
 
+/**
+ * Hosts of the real browser push services. The server POSTs to whatever
+ * endpoint a client registers, so without this any logged-in user could
+ * make it send requests to arbitrary (internal) URLs — SSRF.
+ * Chrome/Android: fcm.googleapis.com (Chromium builds: *.google.com),
+ * Firefox: *.push.services.mozilla.com, Safari/iOS: *.push.apple.com,
+ * Edge/Windows: *.notify.windows.com.
+ */
+const PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "google.com",
+  "push.services.mozilla.com",
+  "push.apple.com",
+  "notify.windows.com",
+];
+
+export function isAllowedPushEndpoint(endpoint: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" || url.port !== "" || url.username || url.password) {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  return PUSH_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+}
+
 export function getVapidPublicKey(): string | null {
   return process.env.VAPID_PUBLIC_KEY || null;
 }
@@ -77,6 +107,12 @@ export async function notifyEmployeesOfNewProduct(product: Product) {
     const gone: number[] = [];
     await Promise.all(
       subs.map(async (s) => {
+        // Defense in depth: rows are validated on insert, but never send to
+        // a host outside the allowlist even if one got into the table.
+        if (!isAllowedPushEndpoint(s.endpoint)) {
+          gone.push(s.id);
+          return;
+        }
         try {
           await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
