@@ -222,6 +222,14 @@ describe("web push for new products", () => {
       "https://fcm.googleapis.com.evil.example/x", // suffix trick
       "https://notgoogle.com/x",
       "https://user:pw@fcm.googleapis.com/x",
+      "https://mail.google.com/x", // google.com is not a blanket allow
+      "https://jmt1.google.com.evil.example/x",
+      "https://fcm.googleapis.com\\@evil.example/x", // parser differential
+      "https://evil.example\\@fcm.googleapis.com/x",
+      " https://fcm.googleapis.com/fcm/send/x",
+      "https://fcm.googleapis.com/fcm/send/x\n",
+      "https://FCM.googleapis.com/fcm/send/x", // non-canonical
+      "https://fcm.googleapis.com/fcm/../send/x",
     ]) {
       const res = await PUSH_POST(req("/api/push", "POST", { endpoint, keys }));
       expect(res.status, endpoint).toBe(400);

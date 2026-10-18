@@ -19,30 +19,31 @@ import { fmtNumber } from "@/lib/format";
  * Hosts of the real browser push services. The server POSTs to whatever
  * endpoint a client registers, so without this any logged-in user could
  * make it send requests to arbitrary (internal) URLs — SSRF.
- * Chrome/Android: fcm.googleapis.com (Chromium builds: *.google.com),
- * Firefox: *.push.services.mozilla.com, Safari/iOS: *.push.apple.com,
- * Edge/Windows: *.notify.windows.com.
  */
-const PUSH_HOSTS = [
-  "fcm.googleapis.com",
-  "google.com",
-  "push.services.mozilla.com",
-  "push.apple.com",
-  "notify.windows.com",
+const PUSH_HOST_PATTERNS = [
+  /^fcm\.googleapis\.com$/, // Chrome, Edge-on-Android, Android
+  /^jmt\d+\.google\.com$/, // Chromium builds
+  /^([a-z0-9-]+\.)*push\.services\.mozilla\.com$/, // Firefox
+  /^([a-z0-9-]+\.)*push\.apple\.com$/, // Safari / iOS
+  /^([a-z0-9-]+\.)*notify\.windows\.com$/, // Edge / Windows (WNS)
 ];
 
 export function isAllowedPushEndpoint(endpoint: string): boolean {
+  // web-push sends with Node's legacy url.parse, which can read odd input
+  // (backslashes, whitespace, control chars) differently from WHATWG URL.
+  // Only accept input that is already canonical, so both parsers agree.
+  if (/[\x00-\x20\x7f\\]/.test(endpoint)) return false;
   let url: URL;
   try {
     url = new URL(endpoint);
   } catch {
     return false;
   }
+  if (url.href !== endpoint) return false;
   if (url.protocol !== "https:" || url.port !== "" || url.username || url.password) {
     return false;
   }
-  const host = url.hostname.toLowerCase();
-  return PUSH_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+  return PUSH_HOST_PATTERNS.some((re) => re.test(url.hostname));
 }
 
 export function getVapidPublicKey(): string | null {
