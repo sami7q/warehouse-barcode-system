@@ -116,10 +116,10 @@ export default function ProductTable({
                       </span>
                     </span>
                     <span className="px-2.5 py-[9px]" dir="ltr">
-                      {fmtDate(p.createdAt)}
+                      {fmtDate(p.updatedAt)}
                     </span>
                     <span className="px-2.5 py-[9px]">
-                      {fmtTime(p.createdAt)}
+                      {fmtTime(p.updatedAt)}
                     </span>
                     {readOnly ? null : (
                       <span className="flex justify-center gap-1.5 px-2.5 py-1.5">
@@ -218,8 +218,8 @@ export default function ProductTable({
                   </div>
 
                   <div className="mt-2 flex items-center justify-between text-[11.5px] text-[#8A94A8]">
-                    <span dir="ltr">{fmtDate(p.createdAt)}</span>
-                    <span>{fmtTime(p.createdAt)}</span>
+                    <span dir="ltr">{fmtDate(p.updatedAt)}</span>
+                    <span>{fmtTime(p.updatedAt)}</span>
                   </div>
 
                   {readOnly ? null : (

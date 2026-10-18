@@ -54,8 +54,8 @@ export async function GET() {
       sell: p.sellPrice,
       unit: p.unitPrice,
       qty: p.quantity,
-      date: fmtDate(p.createdAt),
-      time: fmtTime(p.createdAt),
+      date: fmtDate(p.updatedAt),
+      time: fmtTime(p.updatedAt),
     });
   });
 

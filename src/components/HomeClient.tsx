@@ -15,10 +15,14 @@ import PrintTab from "@/components/tabs/PrintTab";
 import ScanTab from "@/components/tabs/ScanTab";
 import MakerTab from "@/components/tabs/MakerTab";
 import EmployeesTab from "@/components/tabs/EmployeesTab";
+import NewProductAlerts from "@/components/NewProductAlerts";
+import { useNewProductAlerts } from "@/components/useNewProductAlerts";
 import type { ApiProduct } from "@/lib/types";
 import type { UserRole } from "@/types/next-auth";
 
 const PER_PAGE = 10;
+/** How often the employee view re-fetches the list to catch new products. */
+const EMPLOYEE_POLL_MS = 15_000;
 const MAX_INPUT_VALUE = 1_000_000_000;
 
 function toNonNegativeInt(raw: string): number | null {
@@ -48,16 +52,18 @@ export default function HomeClient({ role }: { role: UserRole }) {
 
   const [printSel, setPrintSel] = useState<number[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await fetch("/api/products");
+      const res = await fetch("/api/products", { cache: "no-store" });
       if (!res.ok) {
         setLoadError(true);
         return;
       }
       const data = (await res.json()) as { products: ApiProduct[] };
       setProducts(data.products);
+      setLoaded(true);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -67,6 +73,34 @@ export default function HomeClient({ role }: { role: UserRole }) {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Employees never mutate, so nothing on their screen would otherwise
+  // trigger a refresh: poll, and re-check right away when the tab returns
+  // to the foreground (background timers are throttled by the browser).
+  useEffect(() => {
+    if (isAdmin) return;
+    let busy = false;
+    const tick = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await fetchProducts();
+      } finally {
+        busy = false;
+      }
+    };
+    const timer = setInterval(tick, EMPLOYEE_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isAdmin, fetchProducts]);
+
+  const { alerts, dismiss } = useNewProductAlerts(products, loaded, !isAdmin);
 
   // Same matching rule as the scanner lookup: exact barcode OR partial name.
   const filtered = useMemo(() => {
@@ -278,6 +312,17 @@ export default function HomeClient({ role }: { role: UserRole }) {
       </div>
 
       <BottomBar userLabel={isAdmin ? "مدير النظام" : "موظف"} />
+
+      {isAdmin ? null : (
+        <NewProductAlerts
+          alerts={alerts}
+          onDismiss={dismiss}
+          onShow={(barcode) => {
+            setSearch(barcode);
+            setPage(1);
+          }}
+        />
+      )}
     </div>
   );
 }

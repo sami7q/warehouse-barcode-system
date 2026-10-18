@@ -1,4 +1,10 @@
+import path from "node:path";
 import { expect, test } from "@playwright/test";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { eq } from "drizzle-orm";
+import * as schema from "../src/db/schema";
+import { fmtDate } from "../src/lib/format";
 import { createProductViaApi, trackConsoleErrors } from "./helpers";
 
 test.describe("main application", () => {
@@ -85,6 +91,38 @@ test.describe("main application", () => {
     page.once("dialog", (d) => d.accept());
     await row.getByTitle("حذف").click();
     await expect(row).toHaveCount(0);
+  });
+
+  test("changing a price moves the row's date/time to the moment of the edit", async ({
+    page,
+  }) => {
+    // Regression: the table showed createdAt, so an edited product kept its
+    // original date forever. Backdate the row so the change is visible at
+    // day resolution (the UI shows date + hh:mm only).
+    const product = await createProductViaApi(page);
+    const client = createClient({
+      url: `file:${path.join(process.cwd(), "e2e.db").replace(/\\/g, "/")}`,
+    });
+    const old = new Date(2020, 0, 1, 9, 30).getTime();
+    await drizzle(client, { schema })
+      .update(schema.products)
+      .set({ createdAt: old, updatedAt: old })
+      .where(eq(schema.products.id, product.id));
+    client.close();
+
+    await page.goto("/");
+    const row = page
+      .getByTestId("product-row")
+      .filter({ hasText: product.barcode });
+    await expect(row).toContainText("2020-01-01");
+
+    await row.getByTitle("تعديل").click();
+    await page.getByTestId("f-sell").fill("2500");
+    await page.getByTestId("save-btn").click();
+
+    await expect(row).toContainText("2,500");
+    await expect(row).toContainText(fmtDate(Date.now()));
+    await expect(row).not.toContainText("2020-01-01");
   });
 
   test("quantity badges use the three tiers", async ({ page }) => {

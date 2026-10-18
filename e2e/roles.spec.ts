@@ -137,6 +137,57 @@ test.describe("employee session — read-only view", () => {
     await expect(page.getByTestId("scan-name")).toHaveText(product.name);
   });
 
+  test("a product the admin adds while the employee is logged in raises a new-product alert", async ({
+    page,
+    browser,
+  }) => {
+    test.setTimeout(60_000);
+    const adminCtx = await browser.newContext({
+      storageState: "e2e/.auth/state.json",
+    });
+    const adminPage = await adminCtx.newPage();
+    // Already existed when the employee opened the page: must NOT alert.
+    const existing = await createProductViaApi(adminPage, {
+      name: "منتج قديم " + Date.now(),
+    });
+    await loginAsFreshEmployee(page, adminPage);
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: existing.barcode }),
+    ).toBeVisible();
+    await expect(page.getByTestId("new-product-alert")).toHaveCount(0);
+
+    const added = await createProductViaApi(adminPage, {
+      name: "منتج جديد للموظف " + Date.now(),
+      sell_price: 3750,
+    });
+    await adminCtx.close();
+
+    // Picked up by the employee poll (15s) without any reload.
+    const alert = page.getByTestId("new-product-alert");
+    await expect(alert).toHaveCount(1, { timeout: 25_000 });
+    await expect(page.getByTestId("new-product-alert-name")).toHaveText(
+      added.name,
+    );
+    await expect(alert).toContainText("3,750");
+    const barcodeImg = alert.getByRole("img", { name: added.barcode });
+    await expect(barcodeImg).toHaveAttribute(
+      "src",
+      `/api/barcode?text=${added.barcode}`,
+    );
+    await expect
+      .poll(() => barcodeImg.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBeGreaterThan(0);
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: added.barcode }),
+    ).toBeVisible();
+
+    // "عرض في الجدول" filters the table to the product and closes the card.
+    await alert.getByRole("button", { name: "عرض في الجدول" }).click();
+    await expect(page.getByTestId("search-input")).toHaveValue(added.barcode);
+    await expect(page.getByTestId("product-row")).toHaveCount(1);
+    await expect(page.getByTestId("new-product-alert")).toHaveCount(0);
+  });
+
   test("clicking the main search bar is not hijacked back to قارئ الباركود", async ({
     page,
     browser,
