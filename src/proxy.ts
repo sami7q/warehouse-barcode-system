@@ -33,6 +33,10 @@ export default auth((req) => {
   }
 });
 
+// Static assets the browser fetches without a session must stay public:
+// the push service worker, the PWA manifest and its PNG icons.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.svg$|.*\\.png$).*)",
+  ],
 };

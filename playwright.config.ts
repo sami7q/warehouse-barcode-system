@@ -38,6 +38,9 @@ export default defineConfig({
       TURSO_AUTH_TOKEN: "",
       AUTH_SECRET: "e2e-secret-not-for-production-0123456789abcdef",
       BARCODE_PREFIX: "628110",
+      // Throwaway test-only Web Push keys (production has its own).
+      VAPID_PUBLIC_KEY: "BNDEwPiR2o1VEkX9h1ktLlmJz4xOb18bnDzCDiBPKVAJgQ5XmWFTYQp6mYWFtR5DarWDqaC6zJjR4Lq9uXyao8U",
+      VAPID_PRIVATE_KEY: "4DSfkIl0JSrM5HYSaT_rcGC9zjes-9Jww4e0jTdX2ao",
     },
   },
 });

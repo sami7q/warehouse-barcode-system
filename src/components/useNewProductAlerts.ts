@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiProduct } from "@/lib/types";
-import { fmtNumber } from "@/lib/format";
 import { playAlertSound, unlockAlertSound } from "@/lib/alert-sound";
 
 /** Most recent alerts kept on screen; older ones drop off the stack. */
@@ -11,11 +10,13 @@ const MAX_VISIBLE = 4;
 export type ProductAlert = { product: ApiProduct; at: number };
 
 /**
- * Employee "new product" alerts. Watches the polled product list and, for
- * every product whose id is above the highest one already seen, raises an
- * in-app card, plays a chime, and (if the employee allowed it) shows a
- * system notification. Product ids are AUTOINCREMENT, so "id above the max
- * seen" is exactly "created since the last poll" — no clock comparison.
+ * Employee "new product" alerts while the page is open. Watches the polled
+ * product list and, for every product whose id is above the highest one
+ * already seen, raises an in-app card and plays a chime. System
+ * notifications (closed tab, locked phone) come from Web Push instead —
+ * see src/lib/push.ts and public/sw.js. Product ids are AUTOINCREMENT, so
+ * "id above the max seen" is exactly "created since the last poll" — no
+ * clock comparison.
  *
  * The very first loaded list only sets the baseline: products that already
  * existed when the page opened are never announced.
@@ -63,7 +64,6 @@ export function useNewProductAlerts(
     );
     playAlertSound();
     navigator.vibrate?.(200);
-    showSystemNotification(fresh);
   }, [products, loaded, enabled]);
 
   const dismiss = useCallback((id: number) => {
@@ -71,30 +71,4 @@ export function useNewProductAlerts(
   }, []);
 
   return { alerts, dismiss };
-}
-
-function showSystemNotification(fresh: ApiProduct[]) {
-  if (typeof Notification === "undefined") return;
-  if (Notification.permission !== "granted") return;
-  const [first] = fresh;
-  const title =
-    fresh.length === 1
-      ? `منتج جديد: ${first.name}`
-      : `تمت إضافة ${fresh.length} منتجات جديدة`;
-  const body =
-    fresh.length === 1
-      ? `الباركود: ${first.barcode}\nسعر البيع: ${fmtNumber(first.sellPrice)} دينار`
-      : fresh.map((p) => p.name).join("، ");
-  try {
-    new Notification(title, {
-      body,
-      icon: "/icon.svg",
-      tag: `new-product-${first.id}`,
-      lang: "ar",
-      dir: "rtl",
-    });
-  } catch {
-    // Android Chrome forbids the constructor outside a service worker; the
-    // in-app card and chime still fire, which is what matters on mobile.
-  }
 }

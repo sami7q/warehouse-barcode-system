@@ -8,6 +8,13 @@
       "when": 1785840257828,
       "tag": "0000_mighty_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792329247877,
+      "tag": "0001_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

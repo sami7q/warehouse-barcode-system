@@ -74,6 +74,12 @@ export default function HomeClient({ role }: { role: UserRole }) {
     fetchProducts();
   }, [fetchProducts]);
 
+  // Tapping a push notification opens /?q=<barcode>: show that product.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setSearch(q);
+  }, []);
+
   // Employees never mutate, so nothing on their screen would otherwise
   // trigger a refresh: poll, and re-check right away when the tab returns
   // to the foreground (background timers are throttled by the browser).

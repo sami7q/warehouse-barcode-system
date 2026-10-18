@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
+import { pushSubscriptions, users } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +49,9 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     );
   }
 
+  // Explicit rather than relying on ON DELETE CASCADE, which SQLite only
+  // honours when foreign_keys is switched on for the connection.
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, id));
   await db.delete(users).where(eq(users.id, id));
   return NextResponse.json({ ok: true });
 }

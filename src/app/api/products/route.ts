@@ -10,6 +10,7 @@ import { renderBarcodeSvg } from "@/lib/barcode-svg";
 import { productCreateSchema } from "@/lib/validation";
 import { isUniqueViolation } from "@/lib/db-errors";
 import { serialized, withBusyRetry } from "@/lib/serialize";
+import { notifyEmployeesOfNewProduct } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +130,11 @@ export async function POST(req: NextRequest) {
         }),
       ),
     );
+
+    // Awaited rather than fire-and-forget: on serverless, work still pending
+    // after the response is sent can be frozen and the push never delivered.
+    // It never throws and each send has its own timeout.
+    await notifyEmployeesOfNewProduct(product);
 
     return NextResponse.json(
       { product, svg: renderBarcodeSvg(product.barcode) },

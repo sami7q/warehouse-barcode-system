@@ -78,6 +78,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.role = token.role ?? "admin";
+        // Auth.js keeps the user id in token.sub but doesn't expose it on
+        // the session by default; /api/push needs it to own subscriptions.
+        if (token.sub) session.user.id = token.sub;
       }
       return session;
     },

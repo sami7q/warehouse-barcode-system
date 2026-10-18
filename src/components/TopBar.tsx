@@ -3,6 +3,17 @@
 import { useEffect, useState } from "react";
 import { fmtClock, fmtDate } from "@/lib/format";
 import { logout } from "@/app/logout-action";
+import { disablePushOnThisDevice } from "@/lib/push-client";
+
+/** Unsubscribe first so a shared device stops receiving the leaving user's
+ * pushes — but never let a slow push service hold up the logout itself. */
+async function logoutAndUnsubscribe() {
+  await Promise.race([
+    disablePushOnThisDevice().catch(() => {}),
+    new Promise((r) => setTimeout(r, 1500)),
+  ]);
+  await logout();
+}
 
 export default function TopBar() {
   const [clock, setClock] = useState("");
@@ -63,7 +74,7 @@ export default function TopBar() {
         </span>
       </div>
       <button
-        onClick={() => logout()}
+        onClick={() => logoutAndUnsubscribe()}
         title="تسجيل الخروج"
         className="ms-2 grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md border-none bg-transparent hover:bg-white/12 sm:ms-3.5 sm:h-[30px] sm:w-[34px]"
       >

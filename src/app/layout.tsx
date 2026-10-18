@@ -10,11 +10,13 @@ const kufi = Noto_Kufi_Arabic({
 export const metadata: Metadata = {
   title: "إدارة المخازن",
   description: "نظام إدارة المخازن والباركود",
+  appleWebApp: { capable: true, title: "المخازن", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#101C36",
 };
 
 export default function RootLayout({
