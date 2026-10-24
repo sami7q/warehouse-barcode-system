@@ -4,6 +4,16 @@ import path from "node:path";
 import { chromium, expect, test, type Page } from "@playwright/test";
 import { createClient } from "@libsql/client";
 import { createEmployeeViaApi, createProductViaApi } from "./helpers";
+import type { ApiProduct } from "../src/lib/types";
+import {
+  createdEvent,
+  notificationFor,
+  updatedEvent,
+  type ProductEvent,
+} from "../src/lib/product-events";
+
+/** Exactly what src/lib/push.ts sends for an event. */
+const payloadFor = (e: ProductEvent) => ({ ...notificationFor(e), event: e });
 
 /**
  * Set PUSH_E2E_REAL=1 to also wait for the genuine push from Google FCM
@@ -108,37 +118,81 @@ test.describe("employee device", () => {
       await page.close();
       await other.goto("/login");
 
-      const product = await createProductViaApi(adminPage, {
-        name: "منتج دفع " + Date.now(),
-      });
-      const expected = {
-        title: `منتج جديد: ${product.name}`,
-        tag: `new-product-${product.id}`,
-        url: `/?q=${product.barcode}`,
-      };
       const shown = () =>
         other.evaluate(async () => {
           const reg = await navigator.serviceWorker.getRegistration("/");
           return ((await reg?.getNotifications()) ?? []).map((n) => ({
             title: n.title,
+            body: n.body,
             tag: n.tag,
             url: (n.data as { url: string }).url,
           }));
         });
-      if (REAL_FCM) {
-        await expect
-          .poll(shown, { timeout: 60_000, intervals: [500] })
-          .toContainEqual(expected);
-      } else {
+      /** Server → push service → this browser, or the DevTools stand-in. */
+      const expectPushShown = async (event: ProductEvent) => {
+        const { title, body, tag, url } = notificationFor(event);
+        const expected = { title, body, tag, url };
+        if (REAL_FCM) {
+          await expect
+            .poll(shown, { timeout: 60_000, intervals: [500] })
+            .toContainEqual(expected);
+          return;
+        }
         // The DevTools hand-off is occasionally dropped; re-deliver rather
         // than fail (a duplicate shares the tag, so it just replaces).
         await expect(async () => {
-          await deliverPush(other, { ...expected, body: `الباركود: ${product.barcode}` });
+          await deliverPush(other, payloadFor(event));
           await expect
             .poll(shown, { timeout: 10_000, intervals: [500] })
             .toContainEqual(expected);
         }).toPass({ timeout: 60_000 });
-      }
+      };
+
+      // 1) New product, app closed.
+      const product = (await createProductViaApi(adminPage, {
+        name: "منتج دفع " + Date.now(),
+      })) as unknown as ApiProduct;
+      await expectPushShown(createdEvent(product));
+
+      // 2) Price edit, app closed: the notification spells out the change.
+      const edit = async (sell: number) => {
+        const res = await adminPage.request.put(`/api/products/${product.id}`, {
+          data: {
+            name: product.name,
+            purchase_price: 1000,
+            sell_price: sell,
+            unit_price: 100,
+            quantity: 50,
+          },
+        });
+        expect(res.ok()).toBe(true);
+        return ((await res.json()) as { product: ApiProduct }).product;
+      };
+      const before = (
+        (await (await adminPage.request.get(`/api/products?barcode=${product.barcode}`)).json()) as {
+          product: ApiProduct;
+        }
+      ).product;
+      const edited = await edit(2600);
+      const priceEvent = updatedEvent(before, edited)!;
+      expect(notificationFor(priceEvent).title).toBe(`تغيير سعر: ${product.name}`);
+      expect(notificationFor(priceEvent).body).toBe(
+        "سعر البيع: من 2,000 إلى 2,600 دينار",
+      );
+      await expectPushShown(priceEvent);
+
+      // 3) App open in front: the worker forwards the push to the tab,
+      //    whose card appears at once (well before the 15s poll).
+      await other.goto("/");
+      await expect(other.getByTestId("alerts-on")).toBeVisible({ timeout: 30_000 });
+      const edited2 = await edit(2700);
+      const liveEvent = updatedEvent(edited, edited2)!;
+      const started = Date.now();
+      await deliverPush(other, payloadFor(liveEvent));
+      const card = other.locator('[data-testid="product-alert"][data-kind="updated"]');
+      await expect(card).toHaveCount(1, { timeout: 5_000 });
+      expect(Date.now() - started).toBeLessThan(10_000);
+      await expect(card.getByTestId("product-alert-changes")).toContainText("2,700");
 
       // Logging out unsubscribes this device.
       await other.goto("/");

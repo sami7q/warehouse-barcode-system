@@ -154,7 +154,7 @@ test.describe("employee session — read-only view", () => {
     await expect(
       page.getByTestId("product-row").filter({ hasText: existing.barcode }),
     ).toBeVisible();
-    await expect(page.getByTestId("new-product-alert")).toHaveCount(0);
+    await expect(page.getByTestId("product-alert")).toHaveCount(0);
 
     const added = await createProductViaApi(adminPage, {
       name: "منتج جديد للموظف " + Date.now(),
@@ -163,9 +163,9 @@ test.describe("employee session — read-only view", () => {
     await adminCtx.close();
 
     // Picked up by the employee poll (15s) without any reload.
-    const alert = page.getByTestId("new-product-alert");
+    const alert = page.getByTestId("product-alert");
     await expect(alert).toHaveCount(1, { timeout: 25_000 });
-    await expect(page.getByTestId("new-product-alert-name")).toHaveText(
+    await expect(page.getByTestId("product-alert-name")).toHaveText(
       added.name,
     );
     await expect(alert).toContainText("3,750");
@@ -185,7 +185,83 @@ test.describe("employee session — read-only view", () => {
     await alert.getByRole("button", { name: "عرض في الجدول" }).click();
     await expect(page.getByTestId("search-input")).toHaveValue(added.barcode);
     await expect(page.getByTestId("product-row")).toHaveCount(1);
-    await expect(page.getByTestId("new-product-alert")).toHaveCount(0);
+    await expect(page.getByTestId("product-alert")).toHaveCount(0);
+  });
+
+  test("a price edit and a deletion each reach the employee as a card with sound", async ({
+    page,
+    browser,
+  }) => {
+    test.setTimeout(90_000);
+    // Count chime tones actually handed to the audio system.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __tones: number };
+      w.__tones = 0;
+      const start = OscillatorNode.prototype.start;
+      OscillatorNode.prototype.start = function (...args) {
+        w.__tones += 1;
+        return start.apply(this, args);
+      };
+    });
+    const adminCtx = await browser.newContext({
+      storageState: "e2e/.auth/state.json",
+    });
+    const adminPage = await adminCtx.newPage();
+    const product = await createProductViaApi(adminPage, {
+      name: "منتج سيتغير " + Date.now(),
+      purchase_price: 1000,
+      sell_price: 2000,
+      unit_price: 100,
+      quantity: 50,
+    });
+    await loginAsFreshEmployee(page, adminPage);
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: product.barcode }),
+    ).toBeVisible();
+    // Any tap unlocks page audio (browser autoplay rule).
+    await page.getByTestId("search-input").click();
+    const tones = () =>
+      page.evaluate(() => (window as unknown as { __tones: number }).__tones);
+    expect(await tones()).toBe(0);
+
+    const put = await adminPage.request.put(`/api/products/${product.id}`, {
+      data: {
+        name: product.name,
+        purchase_price: 1000,
+        sell_price: 2500,
+        unit_price: 100,
+        quantity: 50,
+      },
+    });
+    expect(put.ok()).toBe(true);
+
+    const card = page.locator('[data-testid="product-alert"][data-kind="updated"]');
+    await expect(card).toHaveCount(1, { timeout: 25_000 });
+    await expect(card.getByTestId("product-alert-heading")).toHaveText("تغيير سعر");
+    const changes = card.getByTestId("product-alert-changes").locator("li");
+    await expect(changes).toHaveCount(1);
+    await expect(changes.first()).toContainText("سعر البيع");
+    await expect(changes.first()).toContainText("2,000");
+    await expect(changes.first()).toContainText("2,500");
+    await expect.poll(tones).toBeGreaterThan(0);
+    const afterEdit = await tones();
+    // The table itself already shows the new price.
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: product.barcode }),
+    ).toContainText("2,500");
+
+    const del = await adminPage.request.delete(`/api/products/${product.id}`);
+    expect(del.ok()).toBe(true);
+    await adminCtx.close();
+
+    const gone = page.locator('[data-testid="product-alert"][data-kind="deleted"]');
+    await expect(gone).toHaveCount(1, { timeout: 25_000 });
+    await expect(gone).toContainText(product.barcode);
+    await expect(gone.getByTestId("product-alert-heading")).toHaveText("حذف منتج");
+    await expect.poll(tones).toBeGreaterThan(afterEdit);
+    await expect(
+      page.getByTestId("product-row").filter({ hasText: product.barcode }),
+    ).toHaveCount(0);
   });
 
   test("clicking the main search bar is not hijacked back to قارئ الباركود", async ({

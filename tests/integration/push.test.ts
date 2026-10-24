@@ -59,6 +59,10 @@ import { getDb, resetDbForTests } from "@/db";
 import { products, pushSubscriptions, users } from "@/db/schema";
 import { POST as CREATE_PRODUCT } from "@/app/api/products/route";
 import {
+  DELETE as DELETE_PRODUCT,
+  PUT as UPDATE_PRODUCT,
+} from "@/app/api/products/[id]/route";
+import {
   DELETE as PUSH_DELETE,
   GET as PUSH_GET,
   POST as PUSH_POST,
@@ -183,7 +187,7 @@ describe("without VAPID keys configured", () => {
   });
 });
 
-describe("web push for new products", () => {
+describe("web push for product changes", () => {
   beforeAll(() => {
     const keys = webpush.generateVAPIDKeys();
     process.env.VAPID_PUBLIC_KEY = keys.publicKey;
@@ -286,13 +290,124 @@ describe("web push for new products", () => {
       expect(decrypt(device, msg!.body)).toEqual({
         title: "منتج جديد: فستق حلبي",
         body: expect.stringContaining(product.barcode),
-        tag: `new-product-${product.id}`,
+        tag: `c:${product.id}`,
         url: `/?q=${product.barcode}`,
+        event: expect.objectContaining({
+          kind: "created",
+          key: `c:${product.id}`,
+          changes: [],
+          product: expect.objectContaining({ id: product.id, name: "فستق حلبي" }),
+        }),
       });
     }
     expect(decrypt(phoneA, pushService.delivered[0].body).body).toContain(
       "70,000",
     );
+  });
+
+  it("a price edit pushes exactly what changed, from → to", async () => {
+    const phone = makeDevice("edit");
+    asEmployee(employeeA);
+    await subscribe(phone);
+    const product = await createProduct("لوز");
+    pushService.delivered.length = 0;
+
+    asAdmin();
+    const res = await UPDATE_PRODUCT(
+      req(`/api/products/${product.id}`, "PUT", {
+        name: "لوز",
+        purchase_price: 1000,
+        sell_price: 75000,
+        unit_price: 2500,
+        quantity: 12,
+      }),
+      { params: Promise.resolve({ id: String(product.id) }) },
+    );
+    expect(res.status).toBe(200);
+    const { product: updated } = (await res.json()) as {
+      product: { updatedAt: number };
+    };
+
+    expect(pushService.delivered).toHaveLength(1);
+    const msg = decrypt(phone, pushService.delivered[0].body);
+    expect(msg.title).toBe("تغيير سعر: لوز");
+    expect(msg.body).toBe(
+      "سعر البيع: من 70,000 إلى 75,000 دينار\nسعر المفرد: من 2,000 إلى 2,500 دينار",
+    );
+    expect(msg.tag).toBe(`u:${product.id}:${updated.updatedAt}`);
+    expect(msg.event.kind).toBe("updated");
+    expect(msg.event.changes.map((c: { field: string }) => c.field)).toEqual([
+      "sellPrice",
+      "unitPrice",
+    ]);
+  });
+
+  it("a non-price edit is titled as an edit and lists every changed field", async () => {
+    const phone = makeDevice("rename");
+    asEmployee(employeeA);
+    await subscribe(phone);
+    const product = await createProduct("كاجو");
+    pushService.delivered.length = 0;
+
+    asAdmin();
+    await UPDATE_PRODUCT(
+      req(`/api/products/${product.id}`, "PUT", {
+        name: "كاجو محمص",
+        purchase_price: 1000,
+        sell_price: 70000,
+        unit_price: 2000,
+        quantity: 5,
+      }),
+      { params: Promise.resolve({ id: String(product.id) }) },
+    );
+    const msg = decrypt(phone, pushService.delivered[0].body);
+    expect(msg.title).toBe("تعديل منتج: كاجو محمص");
+    expect(msg.body).toBe(
+      "اسم المنتج: من كاجو إلى كاجو محمص\nالكمية: من 12 إلى 5",
+    );
+  });
+
+  it("a save that changes nothing sends no push", async () => {
+    asEmployee(employeeA);
+    await subscribe(makeDevice("noop"));
+    const product = await createProduct("بندق");
+    pushService.delivered.length = 0;
+
+    asAdmin();
+    const res = await UPDATE_PRODUCT(
+      req(`/api/products/${product.id}`, "PUT", {
+        name: "بندق",
+        purchase_price: 1000,
+        sell_price: 70000,
+        unit_price: 2000,
+        quantity: 12,
+      }),
+      { params: Promise.resolve({ id: String(product.id) }) },
+    );
+    expect(res.status).toBe(200);
+    expect(pushService.delivered).toHaveLength(0);
+  });
+
+  it("deleting a product pushes a deletion notice", async () => {
+    const phone = makeDevice("delete");
+    asEmployee(employeeA);
+    await subscribe(phone);
+    const product = await createProduct("زبيب");
+    pushService.delivered.length = 0;
+
+    asAdmin();
+    const res = await DELETE_PRODUCT(req(`/api/products/${product.id}`, "DELETE"), {
+      params: Promise.resolve({ id: String(product.id) }),
+    });
+    expect(res.status).toBe(200);
+    const msg = decrypt(phone, pushService.delivered[0].body);
+    expect(msg).toEqual({
+      title: "حذف منتج: زبيب",
+      body: `الباركود: ${product.barcode}\nتم حذفه من النظام`,
+      tag: `d:${product.id}`,
+      url: "/",
+      event: expect.objectContaining({ kind: "deleted", key: `d:${product.id}` }),
+    });
   });
 
   it("does not push to admin devices", async () => {

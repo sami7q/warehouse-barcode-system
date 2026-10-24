@@ -15,13 +15,13 @@ import PrintTab from "@/components/tabs/PrintTab";
 import ScanTab from "@/components/tabs/ScanTab";
 import MakerTab from "@/components/tabs/MakerTab";
 import EmployeesTab from "@/components/tabs/EmployeesTab";
-import NewProductAlerts from "@/components/NewProductAlerts";
-import { useNewProductAlerts } from "@/components/useNewProductAlerts";
+import ProductAlerts from "@/components/ProductAlerts";
+import { useProductAlerts } from "@/components/useProductAlerts";
 import type { ApiProduct } from "@/lib/types";
 import type { UserRole } from "@/types/next-auth";
 
 const PER_PAGE = 10;
-/** How often the employee view re-fetches the list to catch new products. */
+/** How often the employee view re-fetches the list to catch product changes. */
 const EMPLOYEE_POLL_MS = 15_000;
 const MAX_INPUT_VALUE = 1_000_000_000;
 
@@ -106,7 +106,12 @@ export default function HomeClient({ role }: { role: UserRole }) {
     };
   }, [isAdmin, fetchProducts]);
 
-  const { alerts, dismiss } = useNewProductAlerts(products, loaded, !isAdmin);
+  const { alerts, dismiss } = useProductAlerts(
+    products,
+    loaded,
+    !isAdmin,
+    fetchProducts,
+  );
 
   // Same matching rule as the scanner lookup: exact barcode OR partial name.
   const filtered = useMemo(() => {
@@ -320,7 +325,7 @@ export default function HomeClient({ role }: { role: UserRole }) {
       <BottomBar userLabel={isAdmin ? "مدير النظام" : "موظف"} />
 
       {isAdmin ? null : (
-        <NewProductAlerts
+        <ProductAlerts
           alerts={alerts}
           onDismiss={dismiss}
           onShow={(barcode) => {

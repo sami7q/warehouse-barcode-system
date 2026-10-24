@@ -1,11 +1,12 @@
 import webpush from "web-push";
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { pushSubscriptions, users, type Product } from "@/db/schema";
-import { fmtNumber } from "@/lib/format";
+import { pushSubscriptions, users } from "@/db/schema";
+import { notificationFor, type ProductEvent } from "@/lib/product-events";
 
 /**
- * Server-sent Web Push for the employee "new product" alert. Unlike the
+ * Server-sent Web Push for employee product alerts (created / edited /
+ * deleted — see src/lib/product-events.ts). Unlike the
  * in-page poll, this reaches a phone whose browser tab is closed, in the
  * background or behind a locked screen — the browser's push service wakes
  * public/sw.js, which shows the notification.
@@ -66,29 +67,18 @@ function configure(): boolean {
   return true;
 }
 
-/** Payload read by public/sw.js. */
-export type PushPayload = {
-  title: string;
-  body: string;
-  tag: string;
-  url: string;
-};
-
-export function newProductPayload(p: Product): PushPayload {
-  return {
-    title: `منتج جديد: ${p.name}`,
-    body: `الباركود: ${p.barcode}\nسعر البيع: ${fmtNumber(p.sellPrice)} دينار · سعر المفرد: ${fmtNumber(p.unitPrice)} دينار · الكمية: ${p.quantity}`,
-    tag: `new-product-${p.id}`,
-    url: `/?q=${encodeURIComponent(p.barcode)}`,
-  };
+/** Payload read by public/sw.js: notification text + the structured
+ * event, which the worker forwards to any open tab for its in-app card. */
+export function pushPayload(event: ProductEvent) {
+  return { ...notificationFor(event), event };
 }
 
 /**
  * Push to every subscribed employee device. Never throws: a failed push
- * must not fail the product creation that triggered it. Subscriptions the
+ * must not fail the product change that triggered it. Subscriptions the
  * push service reports as gone (404/410) are deleted.
  */
-export async function notifyEmployeesOfNewProduct(product: Product) {
+export async function notifyEmployees(event: ProductEvent) {
   if (!configure()) return;
   try {
     const db = getDb();
@@ -104,7 +94,7 @@ export async function notifyEmployeesOfNewProduct(product: Product) {
       .where(eq(users.role, "employee"));
     if (subs.length === 0) return;
 
-    const payload = JSON.stringify(newProductPayload(product));
+    const payload = JSON.stringify(pushPayload(event));
     const gone: number[] = [];
     await Promise.all(
       subs.map(async (s) => {
@@ -133,6 +123,6 @@ export async function notifyEmployeesOfNewProduct(product: Product) {
         .where(inArray(pushSubscriptions.id, gone));
     }
   } catch (err) {
-    console.error("notifyEmployeesOfNewProduct failed", err);
+    console.error("notifyEmployees failed", err);
   }
 }

@@ -1,6 +1,6 @@
 /*
- * Service worker for employee "new product" push notifications.
- * Payload shape: { title, body, tag, url } — see src/lib/push.ts.
+ * Service worker for employee product push notifications (new, edited,
+ * deleted). Payload: { title, body, tag, url, event } — src/lib/push.ts.
  * Runs even when no tab of the app is open, which is the whole point:
  * the in-page poll can't fire on a locked phone or a closed tab.
  */
@@ -20,19 +20,37 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "منتج جديد";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "تمت إضافة منتج جديد إلى النظام",
-      tag: data.tag || "new-product",
-      renotify: true,
-      icon: "/icon-192.png",
-      badge: "/badge-96.png",
-      lang: "ar",
-      dir: "rtl",
-      vibrate: [200, 100, 200],
-      data: { url: data.url || "/" },
-    }),
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // Open tabs get the event for their in-app card (useProductAlerts),
+      // but the sound always comes from this system notification: unlike
+      // page audio it needs no prior tap on the page, so it can't be
+      // silently blocked. The tab therefore doesn't chime for these.
+      const visible = windows.some((c) => c.visibilityState === "visible");
+      if (data.event) {
+        for (const client of windows) {
+          client.postMessage({ type: "product-event", event: data.event });
+        }
+      }
+      await self.registration.showNotification(data.title || "تحديث في المنتجات", {
+        body: data.body || "",
+        tag: data.tag || "product-event",
+        icon: "/icon-192.png",
+        badge: "/badge-96.png",
+        lang: "ar",
+        dir: "rtl",
+        silent: false,
+        // Stay on screen until seen (desktop; phones keep it in the shade).
+        // Not needed when the tab is in front — its card is already there.
+        requireInteraction: !visible,
+        vibrate: [200, 100, 200, 100, 200],
+        data: { url: data.url || "/" },
+      });
+    })(),
   );
 });
 

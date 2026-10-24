@@ -1,10 +1,10 @@
 /**
- * Short two-tone chime for the employee "new product" alert, synthesized
+ * Short two-tone chime for the employee product alerts, synthesized
  * with Web Audio so there's no sound file to ship or cache.
  *
  * Browsers keep an AudioContext suspended until a user gesture, so
  * unlockAlertSound() must run inside one (any click/key on the page — see
- * useNewProductAlerts). Before that, playAlertSound() is a silent no-op.
+ * useProductAlerts). Before that, playAlertSound() is a silent no-op.
  */
 
 let ctx: AudioContext | null = null;

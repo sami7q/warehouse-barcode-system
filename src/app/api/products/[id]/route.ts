@@ -5,6 +5,8 @@ import { getDb } from "@/db";
 import { products } from "@/db/schema";
 import { productUpdateSchema } from "@/lib/validation";
 import { isUniqueViolation } from "@/lib/db-errors";
+import { notifyEmployees } from "@/lib/push";
+import { deletedEvent, updatedEvent } from "@/lib/product-events";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +76,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       })
       .where(eq(products.id, id))
       .returning();
+    // Awaited for the same reason as on create (serverless may freeze work
+    // left pending after the response); never throws. A save that changed
+    // nothing visible (no field differs) notifies nobody.
+    const event = updatedEvent(existing, updated);
+    if (event) await notifyEmployees(event);
     return NextResponse.json({ product: updated });
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -113,5 +120,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   if (deleted.length === 0) {
     return NextResponse.json({ error: "المنتج غير موجود" }, { status: 404 });
   }
+  await notifyEmployees(deletedEvent(deleted[0]));
   return NextResponse.json({ ok: true });
 }
