@@ -73,56 +73,93 @@ export function pushPayload(event: ProductEvent) {
   return { ...notificationFor(event), event };
 }
 
+type Target = { id: number; endpoint: string; p256dh: string; auth: string };
+
+const targetColumns = {
+  id: pushSubscriptions.id,
+  endpoint: pushSubscriptions.endpoint,
+  p256dh: pushSubscriptions.p256dh,
+  auth: pushSubscriptions.auth,
+};
+
 /**
- * Push to every subscribed employee device. Never throws: a failed push
- * must not fail the product change that triggered it. Subscriptions the
- * push service reports as gone (404/410) are deleted.
+ * Send one payload to the given devices; returns how many accepted it.
+ * Never throws. Subscriptions the push service reports as gone (404/410)
+ * are deleted.
+ */
+async function sendTo(subs: Target[], payload: object): Promise<number> {
+  if (subs.length === 0) return 0;
+  const body = JSON.stringify(payload);
+  const gone: number[] = [];
+  let sent = 0;
+  await Promise.all(
+    subs.map(async (s) => {
+      // Defense in depth: rows are validated on insert, but never send to
+      // a host outside the allowlist even if one got into the table.
+      if (!isAllowedPushEndpoint(s.endpoint)) {
+        gone.push(s.id);
+        return;
+      }
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          body,
+          // urgency high: delivered immediately even when Android is dozing.
+          { TTL: 24 * 60 * 60, urgency: "high", timeout: 8000 },
+        );
+        sent += 1;
+      } catch (err) {
+        const e = err as { statusCode?: number; body?: string };
+        if (e.statusCode === 404 || e.statusCode === 410) {
+          console.warn("push subscription expired, removing", e.statusCode, s.id);
+          gone.push(s.id);
+        } else {
+          console.error("web push failed", e.statusCode ?? err, e.body ?? "");
+        }
+      }
+    }),
+  );
+  if (gone.length > 0) {
+    await getDb()
+      .delete(pushSubscriptions)
+      .where(inArray(pushSubscriptions.id, gone));
+  }
+  return sent;
+}
+
+/**
+ * Push a product event to every subscribed employee device. Never throws:
+ * a failed push must not fail the product change that triggered it.
  */
 export async function notifyEmployees(event: ProductEvent) {
   if (!configure()) return;
   try {
-    const db = getDb();
-    const subs = await db
-      .select({
-        id: pushSubscriptions.id,
-        endpoint: pushSubscriptions.endpoint,
-        p256dh: pushSubscriptions.p256dh,
-        auth: pushSubscriptions.auth,
-      })
+    const subs = await getDb()
+      .select(targetColumns)
       .from(pushSubscriptions)
       .innerJoin(users, eq(users.id, pushSubscriptions.userId))
       .where(eq(users.role, "employee"));
-    if (subs.length === 0) return;
-
-    const payload = JSON.stringify(pushPayload(event));
-    const gone: number[] = [];
-    await Promise.all(
-      subs.map(async (s) => {
-        // Defense in depth: rows are validated on insert, but never send to
-        // a host outside the allowlist even if one got into the table.
-        if (!isAllowedPushEndpoint(s.endpoint)) {
-          gone.push(s.id);
-          return;
-        }
-        try {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            payload,
-            { TTL: 24 * 60 * 60, urgency: "high", timeout: 8000 },
-          );
-        } catch (err) {
-          const status = (err as { statusCode?: number }).statusCode;
-          if (status === 404 || status === 410) gone.push(s.id);
-          else console.error("web push failed", status ?? err);
-        }
-      }),
-    );
-    if (gone.length > 0) {
-      await db
-        .delete(pushSubscriptions)
-        .where(inArray(pushSubscriptions.id, gone));
-    }
+    await sendTo(subs, pushPayload(event));
   } catch (err) {
     console.error("notifyEmployees failed", err);
   }
+}
+
+/**
+ * "تجربة الإشعار": a test push to one user's own devices, so an employee
+ * can hear their phone ring. Returns the number of devices reached, or
+ * null when push isn't configured on the server.
+ */
+export async function sendTestPush(userId: number): Promise<number | null> {
+  if (!configure()) return null;
+  const subs = await getDb()
+    .select(targetColumns)
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.userId, userId));
+  return sendTo(subs, {
+    title: "تجربة الإشعارات",
+    body: "إذا سمعت الصوت فالإشعارات تعمل على هذا الهاتف ✓",
+    tag: `test-${Date.now()}`,
+    url: "/",
+  });
 }

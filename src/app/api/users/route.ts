@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { desc } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
+import { pushSubscriptions, users } from "@/db/schema";
 import { employeeCreateSchema } from "@/lib/validation";
 import { isUniqueViolation } from "@/lib/db-errors";
 
@@ -13,7 +13,8 @@ const BCRYPT_COST = 10;
 
 /**
  * GET /api/users — admin-only. Lists employee accounts (never the admin
- * row, never password_hash).
+ * row, never password_hash), with how many of their devices have push
+ * notifications enabled.
  */
 export async function GET() {
   const session = await auth();
@@ -34,8 +35,11 @@ export async function GET() {
       email: users.email,
       role: users.role,
       createdAt: users.createdAt,
+      pushDevices: count(pushSubscriptions.id),
     })
     .from(users)
+    .leftJoin(pushSubscriptions, eq(pushSubscriptions.userId, users.id))
+    .groupBy(users.id)
     .orderBy(desc(users.createdAt));
 
   return NextResponse.json({ users: rows.filter((u) => u.role !== "admin") });

@@ -388,4 +388,42 @@ test.describe("employee session — read-only view", () => {
     }));
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
   });
+
+  test("on a phone the notification banner is at the top, above the product list", async ({
+    page,
+    browser,
+  }) => {
+    // Regression: it used to sit in the scan panel, which a phone renders
+    // below the whole product table — employees never saw it.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const adminCtx = await browser.newContext({
+      storageState: "e2e/.auth/state.json",
+    });
+    const adminPage = await adminCtx.newPage();
+    await createProductViaApi(adminPage);
+    await loginAsFreshEmployee(page, adminPage);
+    await adminCtx.close();
+
+    const banner = page.getByTestId("push-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toBeInViewport();
+    const bannerBox = (await banner.boundingBox())!;
+    const firstCard = page.getByTestId("product-row-mobile").first();
+    await expect(firstCard).toBeVisible();
+    expect(bannerBox.y).toBeLessThan((await firstCard.boundingBox())!.y);
+  });
+});
+
+test.describe("admin sees who will receive notifications", () => {
+  test("a new employee shows as not reachable until they enable notifications", async ({
+    page,
+  }) => {
+    const employee = await createEmployeeViaApi(page);
+    await page.goto("/");
+    await page.getByTestId("tab-employees").click();
+    const row = page.getByTestId("employee-row").filter({ hasText: employee.email });
+    await expect(row.getByTestId("employee-push-status")).toContainText(
+      "الإشعارات غير مفعّلة",
+    );
+  });
 });

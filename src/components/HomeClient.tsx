@@ -6,6 +6,7 @@ import BottomBar from "@/components/BottomBar";
 import SearchBar from "@/components/SearchBar";
 import ProductTable from "@/components/ProductTable";
 import EmployeePanel from "@/components/EmployeePanel";
+import PushStatusBanner from "@/components/PushStatusBanner";
 import Sidebar, { type TabKey } from "@/components/Sidebar";
 import AddProductTab, {
   EMPTY_FORM,
@@ -241,6 +242,7 @@ export default function HomeClient({ role }: { role: UserRole }) {
 
       <div className="flex flex-1 flex-col items-stretch gap-3 px-3 py-3 sm:gap-3.5 sm:px-[18px] sm:py-4 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col rounded-[14px] border border-[#DCE1EB] bg-white px-3.5 py-4 sm:px-5 sm:py-[18px]">
+          {isAdmin ? null : <PushStatusBanner />}
           <SearchBar
             search={search}
             onSearchChange={(v) => {

@@ -94,8 +94,28 @@ test.describe("employee device", () => {
       await page.getByPlaceholder("••••••••").fill(employee.password);
       await page.getByRole("button", { name: "دخول" }).click();
 
-      // Permission already granted → the panel subscribes on its own.
+      // Permission already granted → the banner subscribes on its own.
       await expect(page.getByTestId("alerts-on")).toBeVisible({ timeout: 90_000 });
+
+      // "تجربة الإشعار": the server pushes to this device through the real
+      // push service (FCM). Pressed again on a miss, as an employee would —
+      // FCM is occasionally slow to accept a seconds-old test profile.
+      await expect(async () => {
+        const testRes = page.waitForResponse((r) => r.url().endsWith("/api/push/test"));
+        await page.getByTestId("test-push-btn").click();
+        expect((await testRes).status()).toBe(200);
+      }).toPass({ timeout: 60_000, intervals: [3_000] });
+      await expect(page.getByTestId("test-push-result")).toContainText("أُرسل إشعار تجريبي");
+
+      // The admin now sees this employee as reachable.
+      await adminPage.goto("/");
+      await adminPage.getByTestId("tab-employees").click();
+      await expect(
+        adminPage
+          .getByTestId("employee-row")
+          .filter({ hasText: employee.email })
+          .getByTestId("employee-push-status"),
+      ).toContainText("الإشعارات مفعّلة");
       const endpoint = await page.evaluate(async () => {
         const reg = await navigator.serviceWorker.ready;
         return (await reg.pushManager.getSubscription())?.endpoint ?? "";

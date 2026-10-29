@@ -68,6 +68,8 @@ import {
   POST as PUSH_POST,
 } from "@/app/api/push/route";
 import { DELETE as USER_DELETE } from "@/app/api/users/[id]/route";
+import { GET as USERS_GET } from "@/app/api/users/route";
+import { POST as TEST_PUSH } from "@/app/api/push/test/route";
 
 const TMP_DIR = path.join(process.cwd(), "tests", "tmp");
 const DB_FILE = path.join(TMP_DIR, `push-${process.pid}.db`);
@@ -181,6 +183,7 @@ describe("without VAPID keys configured", () => {
   it("GET /api/push reports 503 and product creation still succeeds", async () => {
     asEmployee(employeeA);
     expect((await PUSH_GET()).status).toBe(503);
+    expect((await TEST_PUSH()).status).toBe(503);
     await subscribe(makeDevice("no-keys"));
     await createProduct("بدون مفاتيح");
     expect(pushService.delivered).toHaveLength(0);
@@ -470,6 +473,47 @@ describe("web push for product changes", () => {
     );
     expect(res.status).toBe(200);
     expect(await getDb().select().from(pushSubscriptions)).toHaveLength(0);
+  });
+
+  it("تجربة الإشعار: reaches only the caller's own devices", async () => {
+    authState.session = null;
+    expect((await TEST_PUSH()).status).toBe(401);
+
+    asEmployee(employeeA);
+    const none = await TEST_PUSH();
+    expect(none.status).toBe(409);
+    expect(((await none.json()) as { error: string }).error).toContain("فعّل الإشعارات");
+
+    const mine = makeDevice("mine-test");
+    await subscribe(mine);
+    asEmployee(employeeB);
+    const theirs = makeDevice("theirs-test");
+    await subscribe(theirs);
+
+    asEmployee(employeeA);
+    const res = await TEST_PUSH();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ sent: 1 });
+    expect(pushService.delivered.map((d) => d.endpoint)).toEqual([
+      mine.subscription.endpoint,
+    ]);
+    const msg = decrypt(mine, pushService.delivered[0].body);
+    expect(msg.title).toBe("تجربة الإشعارات");
+    expect(msg.event).toBeUndefined();
+  });
+
+  it("the admin's employee list shows how many devices each can be reached on", async () => {
+    asEmployee(employeeA);
+    await subscribe(makeDevice("a1"));
+    await subscribe(makeDevice("a2"));
+    asAdmin();
+    const res = await USERS_GET();
+    const { users: list } = (await res.json()) as {
+      users: { id: number; pushDevices: number }[];
+    };
+    const byId = new Map(list.map((u) => [u.id, u.pushDevices]));
+    expect(byId.get(employeeA)).toBe(2);
+    expect(byId.get(employeeB)).toBe(0);
   });
 
   it("deleting an employee account removes their devices", async () => {

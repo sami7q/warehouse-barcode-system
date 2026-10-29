@@ -8,6 +8,7 @@ type EmployeeUser = {
   email: string;
   role: string;
   createdAt: number;
+  pushDevices: number;
 };
 
 const inputCls =
@@ -152,6 +153,18 @@ export default function EmployeesTab() {
                 </div>
                 <div className="text-[11px] text-[#8A94A8]">
                   أُضيف في {fmtDate(u.createdAt)}
+                </div>
+                <div
+                  data-testid="employee-push-status"
+                  className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                    u.pushDevices > 0
+                      ? "bg-[#ECFDF3] text-[#16A34A]"
+                      : "bg-[#FFF7E6] text-[#B45309]"
+                  }`}
+                >
+                  {u.pushDevices > 0
+                    ? `🔔 الإشعارات مفعّلة (${u.pushDevices === 1 ? "جهاز واحد" : `${u.pushDevices} أجهزة`})`
+                    : "🔕 الإشعارات غير مفعّلة — لن يصله تنبيه"}
                 </div>
               </div>
               <button
